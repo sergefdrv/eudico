@@ -4,13 +4,12 @@ import (
 	"context"
 	"testing"
 
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	"github.com/stretchr/testify/require"
-
-	"github.com/filecoin-project/lotus/chain/gen"
 )
 
 func TestChainCheckpoint(t *testing.T) {
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}

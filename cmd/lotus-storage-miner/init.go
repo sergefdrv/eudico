@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"github.com/docker/go-units"
+	slashfilter2 "github.com/filecoin-project/lotus/chainlotus/gen/slashfilter"
 	"github.com/google/uuid"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
@@ -45,7 +46,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/gen/slashfilter"
 	"github.com/filecoin-project/lotus/chain/types"
 	lcli "github.com/filecoin-project/lotus/cli"
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
@@ -484,7 +484,7 @@ func storageMinerInit(ctx context.Context, cctx *cli.Context, api v1api.FullNode
 				return fmt.Errorf("failed to open filesystem journal: %w", err)
 			}
 
-			m := storageminer.NewMiner(api, epp, a, slashfilter.New(mds), j)
+			m := storageminer.NewMiner(api, epp, a, slashfilter2.New(mds), j)
 			{
 				if err := m.Start(ctx); err != nil {
 					return xerrors.Errorf("failed to start up genesis miner: %w", err)

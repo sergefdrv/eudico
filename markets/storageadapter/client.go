@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"context"
 
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
+	state2 "github.com/filecoin-project/lotus/chainlotus/events/state"
+	market3 "github.com/filecoin-project/lotus/chainlotus/market"
 	"github.com/ipfs/go-cid"
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
@@ -25,9 +28,6 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"
 	marketactor "github.com/filecoin-project/lotus/chain/actors/builtin/market"
-	"github.com/filecoin-project/lotus/chain/events"
-	"github.com/filecoin-project/lotus/chain/events/state"
-	"github.com/filecoin-project/lotus/chain/market"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/lib/sigs"
 	"github.com/filecoin-project/lotus/markets/utils"
@@ -38,8 +38,8 @@ import (
 type ClientNodeAdapter struct {
 	*clientApi
 
-	fundmgr   *market.FundManager
-	ev        *events.Events
+	fundmgr   *market3.FundManager
+	ev        *events2.Events
 	dsMatcher *dealStateMatcher
 	scMgr     *SectorCommittedManager
 }
@@ -50,17 +50,17 @@ type clientApi struct {
 	full.MpoolAPI
 }
 
-func NewClientNodeAdapter(mctx helpers.MetricsCtx, lc fx.Lifecycle, stateapi full.StateAPI, chain full.ChainAPI, mpool full.MpoolAPI, fundmgr *market.FundManager) storagemarket.StorageClientNode {
+func NewClientNodeAdapter(mctx helpers.MetricsCtx, lc fx.Lifecycle, stateapi full.StateAPI, chain full.ChainAPI, mpool full.MpoolAPI, fundmgr *market3.FundManager) storagemarket.StorageClientNode {
 	capi := &clientApi{chain, stateapi, mpool}
 	ctx := helpers.LifecycleCtx(mctx, lc)
 
-	ev := events.NewEvents(ctx, capi)
+	ev := events2.NewEvents(ctx, capi)
 	a := &ClientNodeAdapter{
 		clientApi: capi,
 
 		fundmgr:   fundmgr,
 		ev:        ev,
-		dsMatcher: newDealStateMatcher(state.NewStatePredicates(state.WrapFastAPI(capi))),
+		dsMatcher: newDealStateMatcher(state2.NewStatePredicates(state2.WrapFastAPI(capi))),
 	}
 	a.scMgr = NewSectorCommittedManager(ev, a, &apiWrapper{api: capi})
 	return a
@@ -287,7 +287,7 @@ func (c *ClientNodeAdapter) OnDealExpiredOrSlashed(ctx context.Context, dealID a
 
 	// Called when there was a match against the state change we're looking for
 	// and the chain has advanced to the confidence height
-	stateChanged := func(ts *types.TipSet, ts2 *types.TipSet, states events.StateChange, h abi.ChainEpoch) (more bool, err error) {
+	stateChanged := func(ts *types.TipSet, ts2 *types.TipSet, states events2.StateChange, h abi.ChainEpoch) (more bool, err error) {
 		// Check if the deal has already expired
 		if ts2 == nil || sd.Proposal.EndEpoch <= ts2.Height() {
 			onDealExpired(nil)
@@ -300,7 +300,7 @@ func (c *ClientNodeAdapter) OnDealExpiredOrSlashed(ctx context.Context, dealID a
 			return false, nil
 		}
 
-		changedDeals, ok := states.(state.ChangedDeals)
+		changedDeals, ok := states.(state2.ChangedDeals)
 		if !ok {
 			panic("Expected state.ChangedDeals")
 		}

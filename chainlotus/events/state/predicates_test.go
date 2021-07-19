@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	test "github.com/filecoin-project/lotus/chain/events/state/mock"
+	test2 "github.com/filecoin-project/lotus/chainlotus/events/state/mock"
 
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 
@@ -142,12 +142,12 @@ func TestMarketPredicates(t *testing.T) {
 
 	minerAddr, err := address.NewFromString("t00")
 	require.NoError(t, err)
-	oldState, err := test.MockTipset(minerAddr, 1)
+	oldState, err := test2.MockTipset(minerAddr, 1)
 	require.NoError(t, err)
-	newState, err := test.MockTipset(minerAddr, 2)
+	newState, err := test2.MockTipset(minerAddr, 2)
 	require.NoError(t, err)
 
-	api := test.NewMockAPI(bs)
+	api := test2.NewMockAPI(bs)
 	api.SetActor(oldState.Key(), &types.Actor{Code: builtin2.StorageMarketActorCodeID, Head: oldStateC})
 	api.SetActor(newState.Key(), &types.Actor{Code: builtin2.StorageMarketActorCodeID, Head: newStateC})
 
@@ -204,7 +204,7 @@ func TestMarketPredicates(t *testing.T) {
 			t.Fatal("No state change so this should not be called")
 			return false, nil, nil
 		})
-		marketState0 := test.CreateEmptyMarketState(t, store)
+		marketState0 := test2.CreateEmptyMarketState(t, store)
 		marketCid, err := store.Put(ctx, marketState0)
 		require.NoError(t, err)
 		marketState, err := market.Load(store, &types.Actor{
@@ -317,7 +317,7 @@ func TestMarketPredicates(t *testing.T) {
 			t.Fatal("No state change so this should not be called")
 			return false, nil, nil
 		})
-		marketState0 := test.CreateEmptyMarketState(t, store)
+		marketState0 := test2.CreateEmptyMarketState(t, store)
 		marketCid, err := store.Put(ctx, marketState0)
 		require.NoError(t, err)
 		marketState, err := market.Load(store, &types.Actor{
@@ -359,12 +359,12 @@ func TestMinerSectorChange(t *testing.T) {
 	newMinerC := createMinerState(ctx, t, store, owner, worker, []miner.SectorOnChainInfo{si1Ext, si2, si3})
 
 	minerAddr := nextIDAddrF()
-	oldState, err := test.MockTipset(minerAddr, 1)
+	oldState, err := test2.MockTipset(minerAddr, 1)
 	require.NoError(t, err)
-	newState, err := test.MockTipset(minerAddr, 2)
+	newState, err := test2.MockTipset(minerAddr, 2)
 	require.NoError(t, err)
 
-	api := test.NewMockAPI(bs)
+	api := test2.NewMockAPI(bs)
 	api.SetActor(oldState.Key(), &types.Actor{Head: oldMinerC, Code: builtin2.StorageMinerActorCodeID})
 	api.SetActor(newState.Key(), &types.Actor{Head: newMinerC, Code: builtin2.StorageMinerActorCodeID})
 
@@ -420,10 +420,10 @@ type balance struct {
 }
 
 func createMarketState(ctx context.Context, t *testing.T, store adt2.Store, deals map[abi.DealID]*market2.DealState, props map[abi.DealID]*market2.DealProposal, balances map[address.Address]balance) cid.Cid {
-	dealRootCid := test.CreateDealAMT(ctx, t, store, deals)
+	dealRootCid := test2.CreateDealAMT(ctx, t, store, deals)
 	propRootCid := createProposalAMT(ctx, t, store, props)
 	balancesCids := createBalanceTable(ctx, t, store, balances)
-	state := test.CreateEmptyMarketState(t, store)
+	state := test2.CreateEmptyMarketState(t, store)
 	state.States = dealRootCid
 	state.Proposals = propRootCid
 	state.EscrowTable = balancesCids[0]

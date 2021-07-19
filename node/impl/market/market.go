@@ -3,13 +3,13 @@ package market
 import (
 	"context"
 
+	market2 "github.com/filecoin-project/lotus/chainlotus/market"
 	"github.com/ipfs/go-cid"
 	"go.uber.org/fx"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/lotus/chain/actors"
 	marketactor "github.com/filecoin-project/lotus/chain/actors/builtin/market"
-	"github.com/filecoin-project/lotus/chain/market"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/node/impl/full"
 )
@@ -18,7 +18,7 @@ type MarketAPI struct {
 	fx.In
 
 	full.MpoolAPI
-	FMgr *market.FundManager
+	FMgr *market2.FundManager
 }
 
 func (a *MarketAPI) MarketAddBalance(ctx context.Context, wallet, addr address.Address, amt types.BigInt) (cid.Cid, error) {

@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	test2 "github.com/filecoin-project/lotus/chainlotus/events/state/mock"
 	"golang.org/x/net/context"
 	"golang.org/x/xerrors"
 
@@ -17,7 +18,6 @@ import (
 	"github.com/filecoin-project/go-state-types/exitcode"
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/market"
-	evtmock "github.com/filecoin-project/lotus/chain/events/state/mock"
 	"github.com/filecoin-project/lotus/chain/types"
 	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
 	tutils "github.com/filecoin-project/specs-actors/v2/support/testing"
@@ -208,7 +208,7 @@ func TestGetCurrentDealInfo(t *testing.T) {
 		t.Run(testCase, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 			defer cancel()
-			ts, err := evtmock.MockTipset(address.TestAddress, rand.Uint64())
+			ts, err := test2.MockTipset(address.TestAddress, rand.Uint64())
 			require.NoError(t, err)
 			marketDeals := make(map[marketDealKey]*api.MarketDeal)
 			for dealID, deal := range data.marketDeals {

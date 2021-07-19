@@ -10,8 +10,8 @@ import (
 	"github.com/filecoin-project/go-state-types/crypto"
 	lapi "github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/types"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	lcli "github.com/filecoin-project/lotus/cli"
 	"golang.org/x/xerrors"
 
@@ -52,7 +52,7 @@ func init() {
 					return xerrors.Errorf("failed to get randomness: %w", err)
 				}
 
-				t, err := gen.ComputeVRF(ctx, api.WalletSign, mi.Worker, rand)
+				t, err := gen2.ComputeVRF(ctx, api.WalletSign, mi.Worker, rand)
 				if err != nil {
 					return xerrors.Errorf("compute vrf failed: %w", err)
 				}
@@ -81,7 +81,7 @@ func init() {
 			uts := head.MinTimestamp() + uint64(build.BlockDelaySecs)
 			nheight := head.Height() + 1
 			blk, err := api.MinerCreateBlock(ctx, &lapi.BlockTemplate{
-				addr, head.Key(), ticket, ep, mbi.BeaconEntries, msgs, nheight, uts, gen.ValidWpostForTesting,
+				addr, head.Key(), ticket, ep, mbi.BeaconEntries, msgs, nheight, uts, gen2.ValidWpostForTesting,
 			})
 			if err != nil {
 				return xerrors.Errorf("creating block: %w", err)

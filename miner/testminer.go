@@ -3,6 +3,8 @@ package miner
 import (
 	"context"
 
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
+	slashfilter2 "github.com/filecoin-project/lotus/chainlotus/gen/slashfilter"
 	lru "github.com/hashicorp/golang-lru"
 	ds "github.com/ipfs/go-datastore"
 
@@ -10,8 +12,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/filecoin-project/lotus/api/v1api"
-	"github.com/filecoin-project/lotus/chain/gen"
-	"github.com/filecoin-project/lotus/chain/gen/slashfilter"
 	"github.com/filecoin-project/lotus/journal"
 )
 
@@ -20,8 +20,8 @@ type MineReq struct {
 	Done        func(bool, abi.ChainEpoch, error)
 }
 
-func NewTestMiner(nextCh <-chan MineReq, addr address.Address) func(v1api.FullNode, gen.WinningPoStProver) *Miner {
-	return func(api v1api.FullNode, epp gen.WinningPoStProver) *Miner {
+func NewTestMiner(nextCh <-chan MineReq, addr address.Address) func(v1api.FullNode, gen2.WinningPoStProver) *Miner {
+	return func(api v1api.FullNode, epp gen2.WinningPoStProver) *Miner {
 		arc, err := lru.NewARC(10000)
 		if err != nil {
 			panic(err)
@@ -33,7 +33,7 @@ func NewTestMiner(nextCh <-chan MineReq, addr address.Address) func(v1api.FullNo
 			epp:               epp,
 			minedBlockHeights: arc,
 			address:           addr,
-			sf:                slashfilter.New(ds.NewMapDatastore()),
+			sf:                slashfilter2.New(ds.NewMapDatastore()),
 			journal:           journal.NilJournal(),
 		}
 

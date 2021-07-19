@@ -7,6 +7,7 @@ import (
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-bitfield"
+	state2 "github.com/filecoin-project/lotus/chainlotus/events/state"
 	"github.com/ipfs/go-cid"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
@@ -18,7 +19,6 @@ import (
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
-	"github.com/filecoin-project/lotus/chain/events/state"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
 	cw_util "github.com/filecoin-project/lotus/cmd/lotus-chainwatch/util"
@@ -653,7 +653,7 @@ func (p *Processor) getMinerStateAt(ctx context.Context, maddr address.Address, 
 }
 
 func (p *Processor) getMinerPreCommitChanges(ctx context.Context, m minerActorInfo) (*miner.PreCommitChanges, error) {
-	pred := state.NewStatePredicates(p.node)
+	pred := state2.NewStatePredicates(p.node)
 	changed, val, err := pred.OnMinerActorChange(m.common.addr, pred.OnMinerPreCommitChange())(ctx, m.common.parentTsKey, m.common.tsKey)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to diff miner precommit amt: %w", err)
@@ -666,7 +666,7 @@ func (p *Processor) getMinerPreCommitChanges(ctx context.Context, m minerActorIn
 }
 
 func (p *Processor) getMinerSectorChanges(ctx context.Context, m minerActorInfo) (*miner.SectorChanges, error) {
-	pred := state.NewStatePredicates(p.node)
+	pred := state2.NewStatePredicates(p.node)
 	changed, val, err := pred.OnMinerActorChange(m.common.addr, pred.OnMinerSectorChange())(ctx, m.common.parentTsKey, m.common.tsKey)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to diff miner sectors amt: %w", err)

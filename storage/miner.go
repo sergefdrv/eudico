@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-bitfield"
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-datastore"
 	logging "github.com/ipfs/go-log/v2"
@@ -28,8 +30,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/events"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/types"
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/filecoin-project/lotus/journal"
@@ -169,7 +169,7 @@ func (m *Miner) Run(ctx context.Context) error {
 
 	var (
 		// consumer of chain head changes.
-		evts        = events.NewEvents(ctx, m.api)
+		evts        = events2.NewEvents(ctx, m.api)
 		evtsAdapter = NewEventsAdapter(evts)
 
 		// Create a shim to glue the API required by the sealing component
@@ -271,7 +271,7 @@ func NewWinningPoStProver(api v1api.FullNode, prover storage.Prover, verifier ff
 	return &StorageWpp{prover, verifier, abi.ActorID(miner), mi.WindowPoStProofType}, nil
 }
 
-var _ gen.WinningPoStProver = (*StorageWpp)(nil)
+var _ gen2.WinningPoStProver = (*StorageWpp)(nil)
 
 func (wpp *StorageWpp) GenerateCandidates(ctx context.Context, randomness abi.PoStRandomness, eligibleSectorCount uint64) ([]uint64, error) {
 	start := build.Clock.Now()

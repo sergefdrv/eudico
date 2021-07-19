@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
+	slashfilter2 "github.com/filecoin-project/lotus/chainlotus/gen/slashfilter"
 	cid "github.com/ipfs/go-cid"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	"go.uber.org/fx"
@@ -12,7 +13,6 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain"
-	"github.com/filecoin-project/lotus/chain/gen/slashfilter"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
@@ -21,7 +21,7 @@ import (
 type SyncAPI struct {
 	fx.In
 
-	SlashFilter *slashfilter.SlashFilter
+	SlashFilter *slashfilter2.SlashFilter
 	Syncer      *chain.Syncer
 	PubSub      *pubsub.PubSub
 	NetName     dtypes.NetworkName

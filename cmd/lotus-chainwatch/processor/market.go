@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"time"
 
+	state2 "github.com/filecoin-project/lotus/chainlotus/events/state"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/lotus/chain/actors/builtin/market"
-	"github.com/filecoin-project/lotus/chain/events/state"
 )
 
 func (p *Processor) setupMarket() error {
@@ -272,7 +272,7 @@ func (p *Processor) updateMarketActorDealProposals(ctx context.Context, marketTi
 	defer func() {
 		log.Debugw("Updated Market Deal Proposals", "duration", time.Since(start).String())
 	}()
-	pred := state.NewStatePredicates(p.node)
+	pred := state2.NewStatePredicates(p.node)
 
 	tx, err := p.db.Begin()
 	if err != nil {

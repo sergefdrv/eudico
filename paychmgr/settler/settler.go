@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
 	"github.com/filecoin-project/lotus/paychmgr"
 
 	"go.uber.org/fx"
@@ -17,7 +18,6 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/paych"
-	"github.com/filecoin-project/lotus/chain/events"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/node/impl/full"
 	payapi "github.com/filecoin-project/lotus/node/impl/paych"
@@ -56,8 +56,8 @@ func SettlePaymentChannels(mctx helpers.MetricsCtx, lc fx.Lifecycle, papi API) e
 	lc.Append(fx.Hook{
 		OnStart: func(context.Context) error {
 			pcs := newPaymentChannelSettler(ctx, &papi)
-			ev := events.NewEvents(ctx, papi)
-			return ev.Called(pcs.check, pcs.messageHandler, pcs.revertHandler, int(build.MessageConfidence+1), events.NoTimeout, pcs.matcher)
+			ev := events2.NewEvents(ctx, papi)
+			return ev.Called(pcs.check, pcs.messageHandler, pcs.revertHandler, int(build.MessageConfidence+1), events2.NoTimeout, pcs.matcher)
 		},
 	})
 	return nil

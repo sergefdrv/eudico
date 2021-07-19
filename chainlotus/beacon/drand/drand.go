@@ -11,6 +11,7 @@ import (
 	dlog "github.com/drand/drand/log"
 	gclient "github.com/drand/drand/lp2p/client"
 	"github.com/drand/kyber"
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
 	kzap "github.com/go-kit/kit/log/zap"
 	lru "github.com/hashicorp/golang-lru"
 	"go.uber.org/zap/zapcore"
@@ -22,7 +23,6 @@ import (
 	"github.com/filecoin-project/go-state-types/abi"
 
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 )
@@ -129,12 +129,12 @@ func NewDrandBeacon(genesisTs, interval uint64, ps *pubsub.PubSub, config dtypes
 	return db, nil
 }
 
-func (db *DrandBeacon) Entry(ctx context.Context, round uint64) <-chan beacon.Response {
-	out := make(chan beacon.Response, 1)
+func (db *DrandBeacon) Entry(ctx context.Context, round uint64) <-chan beacon2.Response {
+	out := make(chan beacon2.Response, 1)
 	if round != 0 {
 		be := db.getCachedValue(round)
 		if be != nil {
-			out <- beacon.Response{Entry: *be}
+			out <- beacon2.Response{Entry: *be}
 			close(out)
 			return out
 		}
@@ -145,7 +145,7 @@ func (db *DrandBeacon) Entry(ctx context.Context, round uint64) <-chan beacon.Re
 		log.Infow("start fetching randomness", "round", round)
 		resp, err := db.client.Get(ctx, round)
 
-		var br beacon.Response
+		var br beacon2.Response
 		if err != nil {
 			br.Err = xerrors.Errorf("drand failed Get request: %w", err)
 		} else {
@@ -203,4 +203,4 @@ func (db *DrandBeacon) MaxBeaconRoundForEpoch(filEpoch abi.ChainEpoch) uint64 {
 	return dround
 }
 
-var _ beacon.RandomBeacon = (*DrandBeacon)(nil)
+var _ beacon2.RandomBeacon = (*DrandBeacon)(nil)

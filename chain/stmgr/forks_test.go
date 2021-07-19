@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	"github.com/ipfs/go-cid"
 	ipldcbor "github.com/ipfs/go-ipld-cbor"
 	logging "github.com/ipfs/go-log/v2"
@@ -27,7 +28,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/aerrors"
 	_init "github.com/filecoin-project/lotus/chain/actors/builtin/init"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/gen"
 	. "github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/vm"
@@ -108,7 +108,7 @@ func TestForkHeightTriggers(t *testing.T) {
 
 	ctx := context.TODO()
 
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,7 +199,7 @@ func TestForkHeightTriggers(t *testing.T) {
 	})
 
 	nonce := uint64(1)
-	cg.GetMessages = func(cg *gen.ChainGen) ([]*types.SignedMessage, error) {
+	cg.GetMessages = func(cg *gen2.ChainGen) ([]*types.SignedMessage, error) {
 		if len(msgs) > 0 {
 			fmt.Println("added construct method")
 			m := msgs
@@ -243,7 +243,7 @@ func TestForkRefuseCall(t *testing.T) {
 
 	ctx := context.TODO()
 
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +326,7 @@ func TestForkRefuseCall(t *testing.T) {
 func TestForkPreMigration(t *testing.T) {
 	logging.SetAllLoggers(logging.LevelInfo)
 
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}

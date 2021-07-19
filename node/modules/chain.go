@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
+	slashfilter2 "github.com/filecoin-project/lotus/chainlotus/gen/slashfilter"
 	"github.com/ipfs/go-bitswap"
 	"github.com/ipfs/go-bitswap/network"
 	"github.com/ipfs/go-blockservice"
@@ -16,9 +18,7 @@ import (
 	"github.com/filecoin-project/lotus/blockstore/splitstore"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain"
-	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/exchange"
-	"github.com/filecoin-project/lotus/chain/gen/slashfilter"
 	"github.com/filecoin-project/lotus/chain/messagepool"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
@@ -124,7 +124,7 @@ type SyncerParams struct {
 	ChainXchg    exchange.Client
 	SyncMgrCtor  chain.SyncManagerCtor
 	Host         host.Host
-	Beacon       beacon.Schedule
+	Beacon       beacon2.Schedule
 	Verifier     ffiwrapper.Verifier
 }
 
@@ -157,6 +157,6 @@ func NewSyncer(params SyncerParams) (*chain.Syncer, error) {
 	return syncer, nil
 }
 
-func NewSlashFilter(ds dtypes.MetadataDS) *slashfilter.SlashFilter {
-	return slashfilter.New(ds)
+func NewSlashFilter(ds dtypes.MetadataDS) *slashfilter2.SlashFilter {
+	return slashfilter2.New(ds)
 }

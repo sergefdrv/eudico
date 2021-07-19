@@ -4,12 +4,12 @@ import (
 	"time"
 
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/beacon"
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
 )
 
-func RandomBeacon() (beacon.Schedule, error) {
-	return beacon.Schedule{
+func RandomBeacon() (beacon2.Schedule, error) {
+	return beacon2.Schedule{
 		{Start: 0,
-			Beacon: beacon.NewMockBeacon(time.Duration(build.BlockDelaySecs) * time.Second),
+			Beacon: beacon2.NewMockBeacon(time.Duration(build.BlockDelaySecs) * time.Second),
 		}}, nil
 }

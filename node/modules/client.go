@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
+	market2 "github.com/filecoin-project/lotus/chainlotus/market"
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
 
@@ -30,7 +31,6 @@ import (
 	"github.com/libp2p/go-libp2p-core/host"
 
 	"github.com/filecoin-project/lotus/blockstore"
-	"github.com/filecoin-project/lotus/chain/market"
 	"github.com/filecoin-project/lotus/journal"
 	"github.com/filecoin-project/lotus/markets"
 	marketevents "github.com/filecoin-project/lotus/markets/loggers"
@@ -44,7 +44,7 @@ import (
 	"github.com/filecoin-project/lotus/node/repo/retrievalstoremgr"
 )
 
-func HandleMigrateClientFunds(lc fx.Lifecycle, ds dtypes.MetadataDS, wallet full.WalletAPI, fundMgr *market.FundManager) {
+func HandleMigrateClientFunds(lc fx.Lifecycle, ds dtypes.MetadataDS, wallet full.WalletAPI, fundMgr *market2.FundManager) {
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
 			addr, err := wallet.WalletDefaultAddress(ctx)

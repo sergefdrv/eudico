@@ -8,14 +8,14 @@ import (
 	"os"
 
 	"github.com/filecoin-project/go-address"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
+	vectors2 "github.com/filecoin-project/lotus/chainlotus/vectors"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/types/mock"
-	"github.com/filecoin-project/lotus/chain/vectors"
 	"github.com/filecoin-project/lotus/chain/wallet"
 
 	_ "github.com/filecoin-project/lotus/lib/sigs/bls"
@@ -27,13 +27,13 @@ func init() {
 	policy.SetConsensusMinerMinPower(abi.NewStoragePower(2048))
 }
 
-func MakeHeaderVectors() []vectors.HeaderVector {
-	cg, err := gen.NewGenerator()
+func MakeHeaderVectors() []vectors2.HeaderVector {
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		panic(err)
 	}
 
-	var out []vectors.HeaderVector
+	var out []vectors2.HeaderVector
 	for i := 0; i < 5; i++ {
 		nts, err := cg.NextTipSet()
 		if err != nil {
@@ -46,7 +46,7 @@ func MakeHeaderVectors() []vectors.HeaderVector {
 			panic(err)
 		}
 
-		out = append(out, vectors.HeaderVector{
+		out = append(out, vectors2.HeaderVector{
 			Block:   h,
 			Cid:     h.Cid().String(),
 			CborHex: fmt.Sprintf("%x", data),
@@ -55,7 +55,7 @@ func MakeHeaderVectors() []vectors.HeaderVector {
 	return out
 }
 
-func MakeMessageSigningVectors() []vectors.MessageSigningVector {
+func MakeMessageSigningVectors() []vectors2.MessageSigningVector {
 	w, err := wallet.NewWallet(wallet.NewMemKeyStore())
 	if err != nil {
 		panic(err)
@@ -77,7 +77,7 @@ func MakeMessageSigningVectors() []vectors.MessageSigningVector {
 
 	bmsg := mock.MkMessage(blsk, to, 55, w)
 
-	blsmsv := vectors.MessageSigningVector{
+	blsmsv := vectors2.MessageSigningVector{
 		Unsigned:    &bmsg.Message,
 		Cid:         bmsg.Message.Cid().String(),
 		CidHexBytes: fmt.Sprintf("%x", bmsg.Message.Cid().Bytes()),
@@ -96,7 +96,7 @@ func MakeMessageSigningVectors() []vectors.MessageSigningVector {
 
 	smsg := mock.MkMessage(secpk, to, 55, w)
 
-	smsv := vectors.MessageSigningVector{
+	smsv := vectors2.MessageSigningVector{
 		Unsigned:    &smsg.Message,
 		Cid:         smsg.Message.Cid().String(),
 		CidHexBytes: fmt.Sprintf("%x", smsg.Message.Cid().Bytes()),
@@ -104,10 +104,10 @@ func MakeMessageSigningVectors() []vectors.MessageSigningVector {
 		Signature:   &smsg.Signature,
 	}
 
-	return []vectors.MessageSigningVector{blsmsv, smsv}
+	return []vectors2.MessageSigningVector{blsmsv, smsv}
 }
 
-func MakeUnsignedMessageVectors() []vectors.UnsignedMessageVector {
+func MakeUnsignedMessageVectors() []vectors2.UnsignedMessageVector {
 	froms := []string{
 		"t2ch7krq7l35i74rebqbjdsp3ucl47t24e3juxjfa",
 		"t1pyfq7dg6sq65acyomqvzvbgwni4zllglqffw5dy",
@@ -131,7 +131,7 @@ func MakeUnsignedMessageVectors() []vectors.UnsignedMessageVector {
 		"t17dvtgkop7cqgi6myjne5kzvrnsbg5wnowjphhwy",
 		"t1kvar5z3q7dwrfxjqsnuqpq5qsd7mvh2xypblwta",
 	}
-	var out []vectors.UnsignedMessageVector
+	var out []vectors2.UnsignedMessageVector
 	for _, a := range froms {
 		from, err := address.NewFromString(a)
 		if err != nil {
@@ -163,7 +163,7 @@ func MakeUnsignedMessageVectors() []vectors.UnsignedMessageVector {
 			panic(err)
 		}
 
-		out = append(out, vectors.UnsignedMessageVector{
+		out = append(out, vectors2.UnsignedMessageVector{
 			Message: msg,
 			HexCbor: fmt.Sprintf("%x", ser),
 		})

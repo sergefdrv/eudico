@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	market2 "github.com/filecoin-project/lotus/chainlotus/market"
 	gen "github.com/whyrusleeping/cbor-gen"
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/exchange"
-	"github.com/filecoin-project/lotus/chain/market"
 	"github.com/filecoin-project/lotus/chain/types"
 	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"github.com/filecoin-project/lotus/extern/sector-storage/storiface"
@@ -71,7 +71,7 @@ func main() {
 	}
 
 	err = gen.WriteTupleEncodersToFile("./chain/market/cbor_gen.go", "market",
-		market.FundedAddressState{},
+		market2.FundedAddressState{},
 	)
 	if err != nil {
 		fmt.Println(err)

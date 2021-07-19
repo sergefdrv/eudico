@@ -7,16 +7,16 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/blockstore"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types/mock"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	datastore "github.com/ipfs/go-datastore"
 	syncds "github.com/ipfs/go-datastore/sync"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIndexSeeks(t *testing.T) {
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}

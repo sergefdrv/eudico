@@ -10,7 +10,7 @@ import (
 
 	"github.com/filecoin-project/go-jsonrpc/auth"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
-	"github.com/filecoin-project/lotus/chain/gen"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 
 	"github.com/filecoin-project/lotus/build"
 	"github.com/google/uuid"
@@ -70,7 +70,7 @@ type StorageMinerAPI struct {
 	storiface.WorkerReturn `optional:"true"`
 	AddrSel                *storage.AddressSelector
 
-	Epp gen.WinningPoStProver `optional:"true"`
+	Epp gen2.WinningPoStProver `optional:"true"`
 	DS  dtypes.MetadataDS
 
 	ConsiderOnlineStorageDealsConfigFunc        dtypes.ConsiderOnlineStorageDealsConfigFunc        `optional:"true"`

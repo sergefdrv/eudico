@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	state2 "github.com/filecoin-project/lotus/chainlotus/events/state"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 
@@ -15,7 +16,6 @@ import (
 
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	_init "github.com/filecoin-project/lotus/chain/actors/builtin/init"
-	"github.com/filecoin-project/lotus/chain/events/state"
 	"github.com/filecoin-project/lotus/chain/types"
 	cw_util "github.com/filecoin-project/lotus/cmd/lotus-chainwatch/util"
 )
@@ -126,8 +126,8 @@ func (p *Processor) HandleCommonActorsChanges(ctx context.Context, actors map[ci
 }
 
 type UpdateAddresses struct {
-	Old state.AddressPair
-	New state.AddressPair
+	Old state2.AddressPair
+	New state2.AddressPair
 }
 
 func (p Processor) storeActorAddresses(ctx context.Context, actors map[cid.Cid]ActorTips) error {

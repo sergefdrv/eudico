@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/Gurpartap/async"
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	"github.com/hashicorp/go-multierror"
 	"github.com/ipfs/go-cid"
 	cbor "github.com/ipfs/go-ipld-cbor"
@@ -25,8 +27,6 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
-	"github.com/filecoin-project/lotus/chain/beacon"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
@@ -41,7 +41,7 @@ type FilecoinEC struct {
 	store *store.ChainStore
 
 	// handle to the random beacon for verification
-	beacon beacon.Schedule
+	beacon beacon2.Schedule
 
 	// the state manager handles making state queries
 	sm *stmgr.StateManager
@@ -55,7 +55,7 @@ type FilecoinEC struct {
 // the theoretical max height based on systime are quickly rejected
 const MaxHeightDrift = 5
 
-func NewFilecoinExpectedConsensus(sm *stmgr.StateManager, beacon beacon.Schedule, verifier ffiwrapper.Verifier, genesis *types.TipSet) Consensus {
+func NewFilecoinExpectedConsensus(sm *stmgr.StateManager, beacon beacon2.Schedule, verifier ffiwrapper.Verifier, genesis *types.TipSet) Consensus {
 	if build.InsecurePoStValidation {
 		log.Warn("*********************************************************************************************")
 		log.Warn(" [INSECURE-POST-VALIDATION] Insecure test validation is enabled. If you see this outside of a test, it is a severe bug! ")
@@ -248,7 +248,7 @@ func (filec *FilecoinEC) ValidateBlock(ctx context.Context, b *types.FullBlock) 
 			return nil
 		}
 
-		if err := beacon.ValidateBlockValues(filec.beacon, h, baseTs.Height(), *prevBeacon); err != nil {
+		if err := beacon2.ValidateBlockValues(filec.beacon, h, baseTs.Height(), *prevBeacon); err != nil {
 			return xerrors.Errorf("failed to validate blocks random beacon values: %w", err)
 		}
 		return nil
@@ -599,7 +599,7 @@ func (filec *FilecoinEC) minerIsValid(ctx context.Context, maddr address.Address
 }
 
 func VerifyElectionPoStVRF(ctx context.Context, worker address.Address, rand []byte, evrf []byte) error {
-	return gen.VerifyVRF(ctx, worker, rand, evrf)
+	return gen2.VerifyVRF(ctx, worker, rand, evrf)
 }
 
 var _ Consensus = &FilecoinEC{}

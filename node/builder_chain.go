@@ -1,6 +1,10 @@
 package node
 
 import (
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
+	slashfilter2 "github.com/filecoin-project/lotus/chainlotus/gen/slashfilter"
+	market2 "github.com/filecoin-project/lotus/chainlotus/market"
+	metrics2 "github.com/filecoin-project/lotus/chainlotus/metrics"
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
 
@@ -11,13 +15,9 @@ import (
 
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain"
-	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/exchange"
-	"github.com/filecoin-project/lotus/chain/gen/slashfilter"
-	"github.com/filecoin-project/lotus/chain/market"
 	"github.com/filecoin-project/lotus/chain/messagepool"
 	"github.com/filecoin-project/lotus/chain/messagesigner"
-	"github.com/filecoin-project/lotus/chain/metrics"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	rpcstmgr "github.com/filecoin-project/lotus/chain/stmgr/rpc"
 	"github.com/filecoin-project/lotus/chain/store"
@@ -52,7 +52,7 @@ var ChainNode = Options(
 	Override(new(modules.Genesis), modules.ErrorGenesis),
 	Override(new(dtypes.AfterGenesisSet), modules.SetGenesis),
 	Override(SetGenesisKey, modules.DoSetGenesis),
-	Override(new(beacon.Schedule), modules.RandomSchedule),
+	Override(new(beacon2.Schedule), modules.RandomSchedule),
 
 	// Network bootstrap
 	Override(new(dtypes.BootstrapPeers), modules.BuiltinBootstrap),
@@ -85,7 +85,7 @@ var ChainNode = Options(
 	Override(new(*peermgr.PeerMgr), peermgr.NewPeerMgr),
 
 	// Chain mining API dependencies
-	Override(new(*slashfilter.SlashFilter), modules.NewSlashFilter),
+	Override(new(*slashfilter2.SlashFilter), modules.NewSlashFilter),
 
 	// Service: Message Pool
 	Override(new(dtypes.DefaultMaxFeeFunc), modules.NewDefaultMaxFeeFunc),
@@ -117,7 +117,7 @@ var ChainNode = Options(
 	Override(new(dtypes.ClientDataTransfer), modules.NewClientGraphsyncDataTransfer),
 
 	// Markets (storage)
-	Override(new(*market.FundManager), market.NewFundManager),
+	Override(new(*market2.FundManager), market2.NewFundManager),
 	Override(new(dtypes.ClientDatastore), modules.NewClientDatastore),
 	Override(new(storagemarket.StorageClient), modules.StorageClient),
 	Override(new(storagemarket.StorageClientNode), storageadapter.NewClientNodeAdapter),
@@ -175,7 +175,7 @@ func ConfigFullNode(c interface{}) Option {
 		Override(new(dtypes.Graphsync), modules.Graphsync(cfg.Client.SimultaneousTransfers)),
 
 		If(cfg.Metrics.HeadNotifs,
-			Override(HeadMetricsKey, metrics.SendHeadNotifs(cfg.Metrics.Nickname)),
+			Override(HeadMetricsKey, metrics2.SendHeadNotifs(cfg.Metrics.Nickname)),
 		),
 
 		If(cfg.Wallet.RemoteBackend != "",

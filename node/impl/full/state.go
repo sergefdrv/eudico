@@ -5,6 +5,8 @@ import (
 	"context"
 	"strconv"
 
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	cid "github.com/ipfs/go-cid"
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
@@ -26,8 +28,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/builtin/reward"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/verifreg"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/beacon"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
@@ -85,7 +85,7 @@ type StateAPI struct {
 	ProofVerifier ffiwrapper.Verifier
 	StateManager  *stmgr.StateManager
 	Chain         *store.ChainStore
-	Beacon        beacon.Schedule
+	Beacon        beacon2.Schedule
 }
 
 func (a *StateAPI) StateNetworkName(ctx context.Context) (dtypes.NetworkName, error) {
@@ -504,7 +504,7 @@ func (a *StateAPI) MinerGetBaseInfo(ctx context.Context, maddr address.Address, 
 }
 
 func (a *StateAPI) MinerCreateBlock(ctx context.Context, bt *api.BlockTemplate) (*types.BlockMsg, error) {
-	fblk, err := gen.MinerCreateBlock(ctx, a.StateManager, a.Wallet, bt)
+	fblk, err := gen2.MinerCreateBlock(ctx, a.StateManager, a.Wallet, bt)
 	if err != nil {
 		return nil, err
 	}

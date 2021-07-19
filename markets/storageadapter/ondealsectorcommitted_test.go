@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
+	test2 "github.com/filecoin-project/lotus/chainlotus/events/state/mock"
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 
 	"golang.org/x/xerrors"
@@ -21,8 +23,6 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/market"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
-	"github.com/filecoin-project/lotus/chain/events"
-	test "github.com/filecoin-project/lotus/chain/events/state/mock"
 	"github.com/filecoin-project/lotus/chain/types"
 	tutils "github.com/filecoin-project/specs-actors/v2/support/testing"
 	"github.com/ipfs/go-cid"
@@ -188,11 +188,11 @@ func TestOnDealSectorPreCommitted(t *testing.T) {
 	}
 	runTestCase := func(testCase string, data testCase) {
 		t.Run(testCase, func(t *testing.T) {
-			checkTs, err := test.MockTipset(provider, rand.Uint64())
+			checkTs, err := test2.MockTipset(provider, rand.Uint64())
 			require.NoError(t, err)
 			matchMessages := make([]matchMessage, len(data.matchStates))
 			for i, ms := range data.matchStates {
-				matchTs, err := test.MockTipset(provider, rand.Uint64())
+				matchTs, err := test2.MockTipset(provider, rand.Uint64())
 				require.NoError(t, err)
 				matchMessages[i] = matchMessage{
 					curH:       5,
@@ -406,11 +406,11 @@ func TestOnDealSectorCommitted(t *testing.T) {
 		t.Run(testCase, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			checkTs, err := test.MockTipset(provider, rand.Uint64())
+			checkTs, err := test2.MockTipset(provider, rand.Uint64())
 			require.NoError(t, err)
 			matchMessages := make([]matchMessage, len(data.matchStates))
 			for i, ms := range data.matchStates {
-				matchTs, err := test.MockTipset(provider, rand.Uint64())
+				matchTs, err := test2.MockTipset(provider, rand.Uint64())
 				require.NoError(t, err)
 				matchMessages[i] = matchMessage{
 					curH:       5,
@@ -477,7 +477,7 @@ type fakeEvents struct {
 	DealStartEpochTimeout bool
 }
 
-func (fe *fakeEvents) Called(check events.CheckFunc, msgHnd events.MsgHandler, rev events.RevertHandler, confidence int, timeout abi.ChainEpoch, mf events.MsgMatchFunc) error {
+func (fe *fakeEvents) Called(check events2.CheckFunc, msgHnd events2.MsgHandler, rev events2.RevertHandler, confidence int, timeout abi.ChainEpoch, mf events2.MsgMatchFunc) error {
 	if fe.DealStartEpochTimeout {
 		msgHnd(nil, nil, nil, 100) // nolint:errcheck
 		return nil

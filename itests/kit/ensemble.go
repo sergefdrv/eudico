@@ -24,11 +24,11 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
-	"github.com/filecoin-project/lotus/chain/gen"
-	genesis2 "github.com/filecoin-project/lotus/chain/gen/genesis"
 	"github.com/filecoin-project/lotus/chain/messagepool"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/chain/wallet"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
+	genesis3 "github.com/filecoin-project/lotus/chainlotus/gen/genesis"
 	"github.com/filecoin-project/lotus/cmd/lotus-seed/seed"
 	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"github.com/filecoin-project/lotus/extern/sector-storage/ffiwrapper"
@@ -193,7 +193,7 @@ func (n *Ensemble) Miner(miner *TestMiner, full *TestFullNode, opts ...NodeOpt) 
 
 	minerCnt := len(n.inactive.miners) + len(n.active.miners)
 
-	actorAddr, err := address.NewIDAddress(genesis2.MinerStart + uint64(minerCnt))
+	actorAddr, err := address.NewIDAddress(genesis3.MinerStart + uint64(minerCnt))
 	require.NoError(n.t, err)
 
 	if options.mainMiner != nil {
@@ -683,7 +683,7 @@ func (n *Ensemble) BeginMining(blocktime time.Duration, miners ...*TestMiner) []
 }
 
 func (n *Ensemble) generateGenesis() *genesis.Template {
-	var verifRoot = gen.DefaultVerifregRootkeyActor
+	var verifRoot = gen2.DefaultVerifregRootkeyActor
 	if k := n.options.verifiedRoot.key; k != nil {
 		verifRoot = genesis.Actor{
 			Type:    genesis.TAccount,
@@ -699,7 +699,7 @@ func (n *Ensemble) generateGenesis() *genesis.Template {
 		NetworkName:      "test",
 		Timestamp:        uint64(time.Now().Unix() - int64(n.options.pastOffset.Seconds())),
 		VerifregRootKey:  verifRoot,
-		RemainderAccount: gen.DefaultRemainderAccountActor,
+		RemainderAccount: gen2.DefaultRemainderAccountActor,
 	}
 
 	return templ

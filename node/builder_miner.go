@@ -4,6 +4,8 @@ import (
 	"errors"
 	"time"
 
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
+	slashfilter2 "github.com/filecoin-project/lotus/chainlotus/gen/slashfilter"
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
 
@@ -16,8 +18,6 @@ import (
 	storage2 "github.com/filecoin-project/specs-storage/storage"
 
 	"github.com/filecoin-project/lotus/api"
-	"github.com/filecoin-project/lotus/chain/gen"
-	"github.com/filecoin-project/lotus/chain/gen/slashfilter"
 	sectorstorage "github.com/filecoin-project/lotus/extern/sector-storage"
 	"github.com/filecoin-project/lotus/extern/sector-storage/ffiwrapper"
 	"github.com/filecoin-project/lotus/extern/sector-storage/stores"
@@ -98,10 +98,10 @@ func ConfigStorageMiner(c interface{}) Option {
 			Override(new(dtypes.GetSealingConfigFunc), modules.NewGetSealConfigFunc),
 
 			// Mining / proving
-			Override(new(*slashfilter.SlashFilter), modules.NewSlashFilter),
+			Override(new(*slashfilter2.SlashFilter), modules.NewSlashFilter),
 			Override(new(*storage.Miner), modules.StorageMiner(config.DefaultStorageMiner().Fees)),
 			Override(new(*miner.Miner), modules.SetupBlockProducer),
-			Override(new(gen.WinningPoStProver), storage.NewWinningPoStProver),
+			Override(new(gen2.WinningPoStProver), storage.NewWinningPoStProver),
 			Override(new(*storage.Miner), modules.StorageMiner(cfg.Fees)),
 			Override(new(sectorblocks.SectorBuilder), From(new(*storage.Miner))),
 		),

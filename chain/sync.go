@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/filecoin-project/lotus/chain/consensus"
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
 
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 
@@ -37,7 +38,6 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	bstore "github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/exchange"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
@@ -86,7 +86,7 @@ type Syncer struct {
 	store *store.ChainStore
 
 	// handle to the random beacon for verification
-	beacon beacon.Schedule
+	beacon beacon2.Schedule
 
 	// the state manager handles making state queries
 	sm *stmgr.StateManager
@@ -94,7 +94,7 @@ type Syncer struct {
 	consensus consensus.Consensus
 
 	// The known Genesis tipset
-	Genesis *types.TipSet
+	Genesis types.SyncTs
 
 	// TipSets known to be invalid
 	bad *BadBlockCache
@@ -120,7 +120,7 @@ type Syncer struct {
 type SyncManagerCtor func(syncFn SyncFunc) SyncManager
 
 // NewSyncer creates a new Syncer object.
-func NewSyncer(ds dtypes.MetadataDS, sm *stmgr.StateManager, exchange exchange.Client, syncMgrCtor SyncManagerCtor, connmgr connmgr.ConnManager, self peer.ID, beacon beacon.Schedule, verifier ffiwrapper.Verifier) (*Syncer, error) {
+func NewSyncer(ds dtypes.MetadataDS, sm *stmgr.StateManager, exchange exchange.Client, syncMgrCtor SyncManagerCtor, connmgr connmgr.ConnManager, self peer.ID, beacon beacon2.Schedule, verifier ffiwrapper.Verifier) (*Syncer, error) {
 	gen, err := sm.ChainStore().GetGenesis()
 	if err != nil {
 		return nil, xerrors.Errorf("getting genesis block: %w", err)

@@ -13,16 +13,15 @@ import (
 
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
+	genesis3 "github.com/filecoin-project/lotus/chainlotus/gen/genesis"
 
 	"github.com/google/uuid"
 	"golang.org/x/xerrors"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
-	genesis2 "github.com/filecoin-project/lotus/chain/gen/genesis"
-
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/cmd/lotus-seed/seed"
 	"github.com/filecoin-project/lotus/genesis"
@@ -45,7 +44,7 @@ func (api *api) Spawn() (nodeInfo, error) {
 	if id == 1 {
 		// preseal
 
-		genMiner, err := address.NewIDAddress(genesis2.MinerStart)
+		genMiner, err := address.NewIDAddress(genesis3.MinerStart)
 		if err != nil {
 			return nodeInfo{}, err
 		}
@@ -76,8 +75,8 @@ func (api *api) Spawn() (nodeInfo, error) {
 			Balance: types.FromFil(5000000),
 			Meta:    (&genesis.AccountMeta{Owner: genm.Owner}).ActorMeta(),
 		})
-		template.VerifregRootKey = gen.DefaultVerifregRootkeyActor
-		template.RemainderAccount = gen.DefaultRemainderAccountActor
+		template.VerifregRootKey = gen2.DefaultVerifregRootkeyActor
+		template.RemainderAccount = gen2.DefaultRemainderAccountActor
 		template.NetworkName = "pond-" + uuid.New().String()
 		template.NetworkVersion = build.NewestNetworkVersion
 

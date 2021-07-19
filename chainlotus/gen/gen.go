@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-state-types/network"
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
+	genesis3 "github.com/filecoin-project/lotus/chainlotus/gen/genesis"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -32,8 +34,6 @@ import (
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/beacon"
-	genesis2 "github.com/filecoin-project/lotus/chain/gen/genesis"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -63,7 +63,7 @@ type ChainGen struct {
 
 	cs *store.ChainStore
 
-	beacon beacon.Schedule
+	beacon beacon2.Schedule
 
 	sm *stmgr.StateManager
 
@@ -164,7 +164,7 @@ func NewGeneratorWithSectorsAndUpgradeSchedule(numSectors int, us stmgr.UpgradeS
 		}
 	}
 
-	maddr1 := genesis2.MinerAddress(0)
+	maddr1 := genesis3.MinerAddress(0)
 
 	m1temp, err := ioutil.TempDir("", "preseal")
 	if err != nil {
@@ -176,7 +176,7 @@ func NewGeneratorWithSectorsAndUpgradeSchedule(numSectors int, us stmgr.UpgradeS
 		return nil, err
 	}
 
-	maddr2 := genesis2.MinerAddress(1)
+	maddr2 := genesis3.MinerAddress(1)
 
 	m2temp, err := ioutil.TempDir("", "preseal")
 	if err != nil {
@@ -228,7 +228,7 @@ func NewGeneratorWithSectorsAndUpgradeSchedule(numSectors int, us stmgr.UpgradeS
 		Timestamp:        uint64(build.Clock.Now().Add(-500 * time.Duration(build.BlockDelaySecs) * time.Second).Unix()),
 	}
 
-	genb, err := genesis2.MakeGenesisBlock(context.TODO(), j, bs, sys, tpl)
+	genb, err := genesis3.MakeGenesisBlock(context.TODO(), j, bs, sys, tpl)
 	if err != nil {
 		return nil, xerrors.Errorf("make genesis block failed: %w", err)
 	}
@@ -244,7 +244,7 @@ func NewGeneratorWithSectorsAndUpgradeSchedule(numSectors int, us stmgr.UpgradeS
 
 	mgen := make(map[address.Address]WinningPoStProver)
 	for i := range tpl.Miners {
-		mgen[genesis2.MinerAddress(uint64(i))] = &wppProvider{}
+		mgen[genesis3.MinerAddress(uint64(i))] = &wppProvider{}
 	}
 
 	sm, err := stmgr.NewStateManagerWithUpgradeSchedule(cs, us)
@@ -254,7 +254,7 @@ func NewGeneratorWithSectorsAndUpgradeSchedule(numSectors int, us stmgr.UpgradeS
 
 	miners := []address.Address{maddr1, maddr2}
 
-	beac := beacon.Schedule{{Start: 0, Beacon: beacon.NewMockBeacon(time.Second)}}
+	beac := beacon2.Schedule{{Start: 0, Beacon: beacon2.NewMockBeacon(time.Second)}}
 	//beac, err := drand.NewDrandBeacon(tpl.Timestamp, build.BlockDelaySecs)
 	//if err != nil {
 	//return nil, xerrors.Errorf("creating drand beacon: %w", err)
@@ -583,7 +583,7 @@ type mca struct {
 	w   *wallet.LocalWallet
 	sm  *stmgr.StateManager
 	pv  ffiwrapper.Verifier
-	bcn beacon.Schedule
+	bcn beacon2.Schedule
 }
 
 func (mca mca) ChainGetRandomnessFromTickets(ctx context.Context, tsk types.TipSetKey, personalization crypto.DomainSeparationTag, randEpoch abi.ChainEpoch, entropy []byte) (abi.Randomness, error) {

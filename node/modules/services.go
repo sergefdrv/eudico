@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"time"
 
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
+	drand2 "github.com/filecoin-project/lotus/chainlotus/beacon/drand"
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/namespace"
 	eventbus "github.com/libp2p/go-eventbus"
@@ -21,8 +23,6 @@ import (
 
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain"
-	"github.com/filecoin-project/lotus/chain/beacon"
-	"github.com/filecoin-project/lotus/chain/beacon/drand"
 	"github.com/filecoin-project/lotus/chain/exchange"
 	"github.com/filecoin-project/lotus/chain/messagepool"
 	"github.com/filecoin-project/lotus/chain/stmgr"
@@ -218,19 +218,19 @@ func BuiltinDrandConfig() dtypes.DrandSchedule {
 	return build.DrandConfigSchedule()
 }
 
-func RandomSchedule(p RandomBeaconParams, _ dtypes.AfterGenesisSet) (beacon.Schedule, error) {
+func RandomSchedule(p RandomBeaconParams, _ dtypes.AfterGenesisSet) (beacon2.Schedule, error) {
 	gen, err := p.Cs.GetGenesis()
 	if err != nil {
 		return nil, err
 	}
 
-	shd := beacon.Schedule{}
+	shd := beacon2.Schedule{}
 	for _, dc := range p.DrandConfig {
-		bc, err := drand.NewDrandBeacon(gen.Timestamp, build.BlockDelaySecs, p.PubSub, dc.Config)
+		bc, err := drand2.NewDrandBeacon(gen.Timestamp, build.BlockDelaySecs, p.PubSub, dc.Config)
 		if err != nil {
 			return nil, xerrors.Errorf("creating drand beacon: %w", err)
 		}
-		shd = append(shd, beacon.BeaconPoint{Start: dc.Start, Beacon: bc})
+		shd = append(shd, beacon2.BeaconPoint{Start: dc.Start, Beacon: bc})
 	}
 
 	return shd, nil

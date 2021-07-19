@@ -5,15 +5,15 @@ import (
 	"fmt"
 
 	"github.com/filecoin-project/go-state-types/abi"
-	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/types"
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
 	"go.uber.org/fx"
 )
 
 type BeaconAPI struct {
 	fx.In
 
-	Beacon beacon.Schedule
+	Beacon beacon2.Schedule
 }
 
 func (a *BeaconAPI) BeaconGetEntry(ctx context.Context, epoch abi.ChainEpoch) (*types.BeaconEntry, error) {

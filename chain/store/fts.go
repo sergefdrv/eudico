@@ -34,7 +34,7 @@ func (fts *FullTipSet) Cids() []cid.Cid {
 
 // TipSet returns a narrower view of this FullTipSet elliding the block
 // messages.
-func (fts *FullTipSet) TipSet() *types.TipSet {
+func (fts *FullTipSet) TipSet() types.SyncTs {
 	if fts.tipset != nil {
 		// FIXME: fts.tipset is actually never set. Should it memoize?
 		return fts.tipset

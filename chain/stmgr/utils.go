@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"strings"
 
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
 	exported5 "github.com/filecoin-project/specs-actors/v5/actors/builtin/exported"
 
 	"github.com/filecoin-project/go-state-types/big"
@@ -37,7 +38,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/state"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -433,7 +433,7 @@ func GetLookbackTipSetForRound(ctx context.Context, sm *StateManager, ts *types.
 	return lbts, nextTs.ParentState(), nil
 }
 
-func MinerGetBaseInfo(ctx context.Context, sm *StateManager, bcs beacon.Schedule, tsk types.TipSetKey, round abi.ChainEpoch, maddr address.Address, pv ffiwrapper.Verifier) (*api.MiningBaseInfo, error) {
+func MinerGetBaseInfo(ctx context.Context, sm *StateManager, bcs beacon2.Schedule, tsk types.TipSetKey, round abi.ChainEpoch, maddr address.Address, pv ffiwrapper.Verifier) (*api.MiningBaseInfo, error) {
 	ts, err := sm.ChainStore().LoadTipSet(tsk)
 	if err != nil {
 		return nil, xerrors.Errorf("failed to load tipset for mining base: %w", err)
@@ -448,7 +448,7 @@ func MinerGetBaseInfo(ctx context.Context, sm *StateManager, bcs beacon.Schedule
 		prev = &types.BeaconEntry{}
 	}
 
-	entries, err := beacon.BeaconEntriesForBlock(ctx, bcs, round, ts.Height(), *prev)
+	entries, err := beacon2.BeaconEntriesForBlock(ctx, bcs, round, ts.Height(), *prev)
 	if err != nil {
 		return nil, err
 	}

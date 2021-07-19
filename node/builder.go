@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	beacon2 "github.com/filecoin-project/lotus/chainlotus/beacon"
 	metricsi "github.com/ipfs/go-metrics-interface"
 
 	"github.com/filecoin-project/lotus/api"
@@ -26,7 +27,6 @@ import (
 	"go.uber.org/fx"
 	"golang.org/x/xerrors"
 
-	"github.com/filecoin-project/lotus/chain/beacon"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/extern/sector-storage/stores"
 	"github.com/filecoin-project/lotus/journal"
@@ -399,7 +399,7 @@ func Test() Option {
 	return Options(
 		Unset(RunPeerMgrKey),
 		Unset(new(*peermgr.PeerMgr)),
-		Override(new(beacon.Schedule), testing.RandomBeacon),
+		Override(new(beacon2.Schedule), testing.RandomBeacon),
 		Override(new(*storageadapter.DealPublisher), storageadapter.NewDealPublisher(nil, storageadapter.PublishMsgConfig{})),
 	)
 }

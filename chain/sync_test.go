@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/filecoin-project/go-state-types/crypto"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
+	slashfilter2 "github.com/filecoin-project/lotus/chainlotus/gen/slashfilter"
 
 	"github.com/filecoin-project/go-state-types/network"
 	"github.com/filecoin-project/lotus/chain/stmgr"
@@ -28,8 +30,6 @@ import (
 	"github.com/filecoin-project/lotus/api"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/gen"
-	"github.com/filecoin-project/lotus/chain/gen/slashfilter"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
 	mocktypes "github.com/filecoin-project/lotus/chain/types/mock"
@@ -79,7 +79,7 @@ type syncTestUtil struct {
 
 	mn mocknet.Mocknet
 
-	g *gen.ChainGen
+	g *gen2.ChainGen
 
 	genesis []byte
 	blocks  []*store.FullTipSet
@@ -91,7 +91,7 @@ type syncTestUtil struct {
 func prepSyncTest(t testing.TB, h int) *syncTestUtil {
 	logging.SetLogLevel("*", "INFO")
 
-	g, err := gen.NewGenerator()
+	g, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -140,7 +140,7 @@ func prepSyncTestWithV5Height(t testing.TB, h int, v5height abi.ChainEpoch) *syn
 		Migration: stmgr.UpgradeActorsV5,
 	}}
 
-	g, err := gen.NewGeneratorWithUpgradeSchedule(sched)
+	g, err := gen2.NewGeneratorWithUpgradeSchedule(sched)
 
 	if err != nil {
 		t.Fatalf("%+v", err)
@@ -515,7 +515,7 @@ func TestSyncBadTimestamp(t *testing.T) {
 	tu.g.Timestamper = nil
 	require.NoError(t, tu.g.ResyncBankerNonce(a1.TipSet()))
 
-	tu.nds[0].(*impl.FullNodeAPI).SlashFilter = slashfilter.New(ds.NewMapDatastore())
+	tu.nds[0].(*impl.FullNodeAPI).SlashFilter = slashfilter2.New(ds.NewMapDatastore())
 
 	fmt.Println("After mine bad block!")
 	tu.printHeads()

@@ -14,8 +14,7 @@ import (
 	"time"
 
 	"github.com/filecoin-project/lotus/build"
-
-	"github.com/filecoin-project/lotus/chain/gen/genesis"
+	genesis2 "github.com/filecoin-project/lotus/chainlotus/gen/genesis"
 
 	_init "github.com/filecoin-project/lotus/chain/actors/builtin/init"
 
@@ -577,7 +576,7 @@ var chainBalanceStateCmd = &cli.Command{
 					}
 
 					// TODO: This is not the correctest way to determine whether a robust address should exist
-					if id >= genesis.MinerStart {
+					if id >= genesis2.MinerStart {
 						return xerrors.Errorf("address doesn't have a robust address: %s", addr)
 					}
 				}

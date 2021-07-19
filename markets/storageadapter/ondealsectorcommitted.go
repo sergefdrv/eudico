@@ -5,6 +5,7 @@ import (
 	"context"
 	"sync"
 
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/ipfs/go-cid"
 	"golang.org/x/xerrors"
@@ -17,12 +18,11 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/market"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
-	"github.com/filecoin-project/lotus/chain/events"
 	"github.com/filecoin-project/lotus/chain/types"
 )
 
 type eventsCalledAPI interface {
-	Called(check events.CheckFunc, msgHnd events.MsgHandler, rev events.RevertHandler, confidence int, timeout abi.ChainEpoch, mf events.MsgMatchFunc) error
+	Called(check events2.CheckFunc, msgHnd events2.MsgHandler, rev events2.RevertHandler, confidence int, timeout abi.ChainEpoch, mf events2.MsgMatchFunc) error
 }
 
 type dealInfoAPI interface {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"testing"
 
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
 	datastore "github.com/ipfs/go-datastore"
 
 	"github.com/filecoin-project/go-state-types/abi"
@@ -13,7 +14,6 @@ import (
 
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/gen"
 	"github.com/filecoin-project/lotus/chain/stmgr"
 	"github.com/filecoin-project/lotus/chain/store"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -27,7 +27,7 @@ func init() {
 }
 
 func BenchmarkGetRandomness(b *testing.B) {
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -84,7 +84,7 @@ func BenchmarkGetRandomness(b *testing.B) {
 }
 
 func TestChainExportImport(t *testing.T) {
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestChainExportImport(t *testing.T) {
 }
 
 func TestChainExportImportFull(t *testing.T) {
-	cg, err := gen.NewGenerator()
+	cg, err := gen2.NewGenerator()
 	if err != nil {
 		t.Fatal(err)
 	}

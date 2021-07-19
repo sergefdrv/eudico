@@ -7,6 +7,8 @@ import (
 
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/big"
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
+	state2 "github.com/filecoin-project/lotus/chainlotus/events/state"
 	"github.com/filecoin-project/lotus/itests/kit"
 	"github.com/ipfs/go-cid"
 	"github.com/stretchr/testify/require"
@@ -21,8 +23,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/paych"
 	"github.com/filecoin-project/lotus/chain/actors/policy"
-	"github.com/filecoin-project/lotus/chain/events"
-	"github.com/filecoin-project/lotus/chain/events/state"
 	"github.com/filecoin-project/lotus/chain/types"
 )
 
@@ -103,8 +103,8 @@ func TestPaymentChannelsAPI(t *testing.T) {
 	creatorStore := adt.WrapStore(ctx, cbor.NewCborStore(blockstore.NewAPIBlockstore(paymentCreator)))
 
 	// wait for the receiver to submit their vouchers
-	ev := events.NewEvents(ctx, paymentCreator)
-	preds := state.NewStatePredicates(paymentCreator)
+	ev := events2.NewEvents(ctx, paymentCreator)
+	preds := state2.NewStatePredicates(paymentCreator)
 	finished := make(chan struct{})
 	err = ev.StateChanged(func(ts *types.TipSet) (done bool, more bool, err error) {
 		act, err := paymentCreator.StateGetActor(ctx, channel, ts.Key())
@@ -123,8 +123,8 @@ func TestPaymentChannelsAPI(t *testing.T) {
 			return true, false, nil
 		}
 		return false, true, nil
-	}, func(oldTs, newTs *types.TipSet, states events.StateChange, curH abi.ChainEpoch) (more bool, err error) {
-		toSendChange := states.(*state.PayChToSendChange)
+	}, func(oldTs, newTs *types.TipSet, states events2.StateChange, curH abi.ChainEpoch) (more bool, err error) {
+		toSendChange := states.(*state2.PayChToSendChange)
 		if toSendChange.NewToSend.GreaterThanEqual(abi.NewTokenAmount(6000)) {
 			close(finished)
 			return false, nil
@@ -132,7 +132,7 @@ func TestPaymentChannelsAPI(t *testing.T) {
 		return true, nil
 	}, func(ctx context.Context, ts *types.TipSet) error {
 		return nil
-	}, int(build.MessageConfidence)+1, build.Finality, func(oldTs, newTs *types.TipSet) (bool, events.StateChange, error) {
+	}, int(build.MessageConfidence)+1, build.Finality, func(oldTs, newTs *types.TipSet) (bool, events2.StateChange, error) {
 		return preds.OnPaymentChannelActorChanged(channel, preds.OnToSendAmountChanges())(ctx, oldTs.Key(), newTs.Key())
 	})
 	require.NoError(t, err)

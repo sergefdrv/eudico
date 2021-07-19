@@ -17,6 +17,20 @@ import (
 
 var log = logging.Logger("types")
 
+type SyncTs interface {
+	Cids() []cid.Cid
+	Height() abi.ChainEpoch
+	Blocks() []SyncBlock
+
+	MinTimestamp() uint64
+	Equals(SyncTs) bool
+}
+
+type SyncBlock interface {
+	GetTimestamp() uint64
+
+}
+
 type TipSet struct {
 	cids   []cid.Cid
 	blks   []*BlockHeader
@@ -155,15 +169,25 @@ func (ts *TipSet) Parents() TipSetKey {
 	return NewTipSetKey(ts.blks[0].Parents...)
 }
 
-func (ts *TipSet) Blocks() []*BlockHeader {
-	return ts.blks
+func (ts *TipSet) Blocks() []SyncBlock {
+	out := make([]SyncBlock, len(ts.blks))
+	for i, blk := range ts.blks {
+		out[i] = blk
+	}
+
+	return out
 }
 
-func (ts *TipSet) Equals(ots *TipSet) bool {
-	if ts == nil && ots == nil {
+func (ts *TipSet) Equals(osts SyncTs) bool {
+	if ts == nil && osts == nil {
 		return true
 	}
-	if ts == nil || ots == nil {
+	if ts == nil || osts == nil {
+		return false
+	}
+
+	ots, ok := osts.(*TipSet)
+	if !ok {
 		return false
 	}
 
@@ -195,10 +219,10 @@ func (ts *TipSet) MinTicket() *Ticket {
 }
 
 func (ts *TipSet) MinTimestamp() uint64 {
-	minTs := ts.Blocks()[0].Timestamp
+	minTs := ts.Blocks()[0].GetTimestamp()
 	for _, bh := range ts.Blocks()[1:] {
-		if bh.Timestamp < minTs {
-			minTs = bh.Timestamp
+		if bh.GetTimestamp() < minTs {
+			minTs = bh.GetTimestamp()
 		}
 	}
 	return minTs
@@ -210,7 +234,7 @@ func (ts *TipSet) MinTicketBlock() *BlockHeader {
 	min := blks[0]
 
 	for _, b := range blks[1:] {
-		if b.LastTicket().Less(min.LastTicket()) {
+		if b.(*BlockHeader).LastTicket().Less(min.(*BlockHeader).LastTicket()) {
 			min = b
 		}
 	}

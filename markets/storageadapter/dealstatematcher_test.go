@@ -4,7 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/filecoin-project/lotus/chain/events"
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
+	state2 "github.com/filecoin-project/lotus/chainlotus/events/state"
+	test2 "github.com/filecoin-project/lotus/chainlotus/events/state/mock"
 	"golang.org/x/sync/errgroup"
 
 	cbornode "github.com/ipfs/go-ipld-cbor"
@@ -15,14 +17,12 @@ import (
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	bstore "github.com/filecoin-project/lotus/blockstore"
-	test "github.com/filecoin-project/lotus/chain/events/state/mock"
 	builtin2 "github.com/filecoin-project/specs-actors/v2/actors/builtin"
 
 	market2 "github.com/filecoin-project/specs-actors/v2/actors/builtin/market"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/filecoin-project/lotus/chain/events/state"
 	"github.com/filecoin-project/lotus/chain/types"
 )
 
@@ -59,20 +59,20 @@ func TestDealStateMatcher(t *testing.T) {
 
 	minerAddr, err := address.NewFromString("t00")
 	require.NoError(t, err)
-	ts1, err := test.MockTipset(minerAddr, 1)
+	ts1, err := test2.MockTipset(minerAddr, 1)
 	require.NoError(t, err)
-	ts2, err := test.MockTipset(minerAddr, 2)
+	ts2, err := test2.MockTipset(minerAddr, 2)
 	require.NoError(t, err)
-	ts3, err := test.MockTipset(minerAddr, 3)
+	ts3, err := test2.MockTipset(minerAddr, 3)
 	require.NoError(t, err)
 
-	api := test.NewMockAPI(bs)
+	api := test2.NewMockAPI(bs)
 	api.SetActor(ts1.Key(), &types.Actor{Code: builtin2.StorageMarketActorCodeID, Head: deal1StateC})
 	api.SetActor(ts2.Key(), &types.Actor{Code: builtin2.StorageMarketActorCodeID, Head: deal2StateC})
 	api.SetActor(ts3.Key(), &types.Actor{Code: builtin2.StorageMarketActorCodeID, Head: deal3StateC})
 
 	t.Run("caching", func(t *testing.T) {
-		dsm := newDealStateMatcher(state.NewStatePredicates(api))
+		dsm := newDealStateMatcher(state2.NewStatePredicates(api))
 		matcher := dsm.matcher(ctx, abi.DealID(1))
 
 		// Call matcher with tipsets that have the same state
@@ -113,14 +113,14 @@ func TestDealStateMatcher(t *testing.T) {
 
 	t.Run("parallel", func(t *testing.T) {
 		api.ResetCallCounts()
-		dsm := newDealStateMatcher(state.NewStatePredicates(api))
+		dsm := newDealStateMatcher(state2.NewStatePredicates(api))
 		matcher := dsm.matcher(ctx, abi.DealID(1))
 
 		// Call matcher with lots of go-routines in parallel
 		var eg errgroup.Group
 		res := make([]struct {
 			ok          bool
-			stateChange events.StateChange
+			stateChange events2.StateChange
 		}, 20)
 		for i := 0; i < len(res); i++ {
 			i := i
@@ -147,8 +147,8 @@ func TestDealStateMatcher(t *testing.T) {
 }
 
 func createMarketState(ctx context.Context, t *testing.T, store adt2.Store, deals map[abi.DealID]*market2.DealState) cid.Cid {
-	dealRootCid := test.CreateDealAMT(ctx, t, store, deals)
-	state := test.CreateEmptyMarketState(t, store)
+	dealRootCid := test2.CreateDealAMT(ctx, t, store, deals)
+	state := test2.CreateEmptyMarketState(t, store)
 	state.States = dealRootCid
 
 	stateC, err := store.Put(ctx, state)

@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/filecoin-project/go-state-types/abi"
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
 
-	"github.com/filecoin-project/lotus/chain/events"
 	"github.com/filecoin-project/lotus/chain/types"
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 )
@@ -13,10 +13,10 @@ import (
 var _ sealing.Events = new(EventsAdapter)
 
 type EventsAdapter struct {
-	delegate *events.Events
+	delegate *events2.Events
 }
 
-func NewEventsAdapter(api *events.Events) EventsAdapter {
+func NewEventsAdapter(api *events2.Events) EventsAdapter {
 	return EventsAdapter{delegate: api}
 }
 

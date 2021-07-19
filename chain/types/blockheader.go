@@ -112,6 +112,10 @@ func (blk *BlockHeader) LastTicket() *Ticket {
 	return blk.Ticket
 }
 
+func (blk *BlockHeader) GetTimestamp() uint64 {
+	return blk.Timestamp
+}
+
 func (blk *BlockHeader) SigningBytes() ([]byte, error) {
 	blkcopy := *blk
 	blkcopy.BlockSig = nil

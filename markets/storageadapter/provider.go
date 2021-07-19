@@ -7,6 +7,8 @@ import (
 	"io"
 	"time"
 
+	events2 "github.com/filecoin-project/lotus/chainlotus/events"
+	state2 "github.com/filecoin-project/lotus/chainlotus/events/state"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
@@ -25,8 +27,6 @@ import (
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/market"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/miner"
-	"github.com/filecoin-project/lotus/chain/events"
-	"github.com/filecoin-project/lotus/chain/events/state"
 	"github.com/filecoin-project/lotus/chain/types"
 	sealing "github.com/filecoin-project/lotus/extern/storage-sealing"
 	"github.com/filecoin-project/lotus/lib/sigs"
@@ -49,7 +49,7 @@ type ProviderNodeAdapter struct {
 	dag dtypes.StagingDAG
 
 	secb *sectorblocks.SectorBlocks
-	ev   *events.Events
+	ev   *events2.Events
 
 	dealPublisher *DealPublisher
 
@@ -63,7 +63,7 @@ func NewProviderNodeAdapter(fc *config.MinerFeeConfig, dc *config.DealmakingConf
 	return func(mctx helpers.MetricsCtx, lc fx.Lifecycle, dag dtypes.StagingDAG, secb *sectorblocks.SectorBlocks, full v1api.FullNode, dealPublisher *DealPublisher) storagemarket.StorageProviderNode {
 		ctx := helpers.LifecycleCtx(mctx, lc)
 
-		ev := events.NewEvents(ctx, full)
+		ev := events2.NewEvents(ctx, full)
 		na := &ProviderNodeAdapter{
 			FullNode: full,
 
@@ -71,7 +71,7 @@ func NewProviderNodeAdapter(fc *config.MinerFeeConfig, dc *config.DealmakingConf
 			secb:          secb,
 			ev:            ev,
 			dealPublisher: dealPublisher,
-			dsMatcher:     newDealStateMatcher(state.NewStatePredicates(state.WrapFastAPI(full))),
+			dsMatcher:     newDealStateMatcher(state2.NewStatePredicates(state2.WrapFastAPI(full))),
 		}
 		if fc != nil {
 			na.addBalanceSpec = &api.MessageSendSpec{MaxFee: abi.TokenAmount(fc.MaxMarketBalanceAddFee)}
@@ -370,7 +370,7 @@ func (n *ProviderNodeAdapter) OnDealExpiredOrSlashed(ctx context.Context, dealID
 
 	// Called when there was a match against the state change we're looking for
 	// and the chain has advanced to the confidence height
-	stateChanged := func(ts *types.TipSet, ts2 *types.TipSet, states events.StateChange, h abi.ChainEpoch) (more bool, err error) {
+	stateChanged := func(ts *types.TipSet, ts2 *types.TipSet, states events2.StateChange, h abi.ChainEpoch) (more bool, err error) {
 		// Check if the deal has already expired
 		if ts2 == nil || sd.Proposal.EndEpoch <= ts2.Height() {
 			onDealExpired(nil)
@@ -383,7 +383,7 @@ func (n *ProviderNodeAdapter) OnDealExpiredOrSlashed(ctx context.Context, dealID
 			return false, nil
 		}
 
-		changedDeals, ok := states.(state.ChangedDeals)
+		changedDeals, ok := states.(state2.ChangedDeals)
 		if !ok {
 			panic("Expected state.ChangedDeals")
 		}

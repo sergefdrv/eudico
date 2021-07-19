@@ -10,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/filecoin-project/go-state-types/network"
+	gen2 "github.com/filecoin-project/lotus/chainlotus/gen"
+	genesis3 "github.com/filecoin-project/lotus/chainlotus/gen/genesis"
 
 	"github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/chain/vm"
@@ -26,8 +28,6 @@ import (
 	"github.com/filecoin-project/go-state-types/big"
 
 	"github.com/filecoin-project/lotus/build"
-	"github.com/filecoin-project/lotus/chain/gen"
-	genesis2 "github.com/filecoin-project/lotus/chain/gen/genesis"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/genesis"
 )
@@ -62,8 +62,8 @@ var genesisNewCmd = &cli.Command{
 			NetworkVersion:   build.NewestNetworkVersion,
 			Accounts:         []genesis.Actor{},
 			Miners:           []genesis.Miner{},
-			VerifregRootKey:  gen.DefaultVerifregRootkeyActor,
-			RemainderAccount: gen.DefaultRemainderAccountActor,
+			VerifregRootKey:  gen2.DefaultVerifregRootkeyActor,
+			RemainderAccount: gen2.DefaultRemainderAccountActor,
 			NetworkName:      cctx.String("network-name"),
 		}
 		if out.NetworkName == "" {
@@ -128,7 +128,7 @@ var genesisAddMinerCmd = &cli.Command{
 		for mn, miner := range miners {
 			log.Infof("Adding miner %s to genesis template", mn)
 			{
-				id := uint64(genesis2.MinerStart) + uint64(len(template.Miners))
+				id := uint64(genesis3.MinerStart) + uint64(len(template.Miners))
 				maddr, err := address.NewFromString(mn)
 				if err != nil {
 					return xerrors.Errorf("parsing miner address: %w", err)
