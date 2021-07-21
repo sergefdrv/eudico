@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 
@@ -23,8 +24,10 @@ import (
 	blockadt "github.com/filecoin-project/specs-actors/actors/util/adt"
 	proof2 "github.com/filecoin-project/specs-actors/v2/actors/runtime/proof"
 
+	big2 "github.com/filecoin-project/go-state-types/big"
 	bstore "github.com/filecoin-project/lotus/blockstore"
 	"github.com/filecoin-project/lotus/build"
+	"github.com/filecoin-project/lotus/chain/actors/adt"
 	"github.com/filecoin-project/lotus/chain/actors/builtin"
 	"github.com/filecoin-project/lotus/chain/actors/builtin/power"
 	"github.com/filecoin-project/lotus/chain/state"
@@ -43,6 +46,8 @@ type FilecoinEC struct {
 	// handle to the random beacon for verification
 	beacon beacon2.Schedule
 
+	filRand *store.FilecoinRandProvider
+
 	// the state manager handles making state queries
 	sm *stmgr.StateManager
 
@@ -55,7 +60,7 @@ type FilecoinEC struct {
 // the theoretical max height based on systime are quickly rejected
 const MaxHeightDrift = 5
 
-func NewFilecoinExpectedConsensus(sm *stmgr.StateManager, beacon beacon2.Schedule, verifier ffiwrapper.Verifier, genesis *types.TipSet) Consensus {
+func NewFilecoinExpectedConsensus(sm *stmgr.StateManager, filRand *store.FilecoinRandProvider, beacon beacon2.Schedule, verifier ffiwrapper.Verifier, genesis *types.TipSet) Consensus {
 	if build.InsecurePoStValidation {
 		log.Warn("*********************************************************************************************")
 		log.Warn(" [INSECURE-POST-VALIDATION] Insecure test validation is enabled. If you see this outside of a test, it is a severe bug! ")
@@ -64,6 +69,7 @@ func NewFilecoinExpectedConsensus(sm *stmgr.StateManager, beacon beacon2.Schedul
 
 	return &FilecoinEC{
 		store:    sm.ChainStore(),
+		filRand:  filRand,
 		beacon:   beacon,
 		sm:       sm,
 		verifier: verifier,
@@ -71,12 +77,77 @@ func NewFilecoinExpectedConsensus(sm *stmgr.StateManager, beacon beacon2.Schedul
 	}
 }
 
+var zero = types.NewInt(0)
+
+func FilecoinWeight(ctx context.Context, bs bstore.Blockstore, ts types.SyncTs) (types.BigInt, error) {
+	if ts == nil {
+		return types.NewInt(0), nil
+	}
+	// >>> w[r] <<< + wFunction(totalPowerAtTipset(ts)) * 2^8 + (wFunction(totalPowerAtTipset(ts)) * sum(ts.blocks[].ElectionProof.WinCount) * wRatio_num * 2^8) / (e * wRatio_den)
+
+	var out = new(big.Int).Set(ts.(*types.TipSet).ParentWeight().Int)
+
+	// >>> wFunction(totalPowerAtTipset(ts)) * 2^8 <<< + (wFunction(totalPowerAtTipset(ts)) * sum(ts.blocks[].ElectionProof.WinCount) * wRatio_num * 2^8) / (e * wRatio_den)
+
+	tpow := big2.Zero()
+	{
+		cst := cbor.NewCborStore(bs)
+		state, err := state.LoadStateTree(cst, ts.(*types.TipSet).ParentState())
+		if err != nil {
+			return types.NewInt(0), xerrors.Errorf("load state tree: %w", err)
+		}
+
+		act, err := state.GetActor(power.Address)
+		if err != nil {
+			return types.NewInt(0), xerrors.Errorf("get power actor: %w", err)
+		}
+
+		powState, err := power.Load(adt.WrapStore(ctx, cbor.NewCborStore(bs)), act)
+		if err != nil {
+			return types.NewInt(0), xerrors.Errorf("failed to load power actor state: %w", err)
+		}
+
+		claim, err := powState.TotalPower()
+		if err != nil {
+			return types.NewInt(0), xerrors.Errorf("failed to get total power: %w", err)
+		}
+
+		tpow = claim.QualityAdjPower // TODO: REVIEW: Is this correct?
+	}
+
+	log2P := int64(0)
+	if tpow.GreaterThan(zero) {
+		log2P = int64(tpow.BitLen() - 1)
+	} else {
+		// Not really expect to be here ...
+		return types.EmptyInt, xerrors.Errorf("All power in the net is gone. You network might be disconnected, or the net is dead!")
+	}
+
+	out.Add(out, big.NewInt(log2P<<8))
+
+	// (wFunction(totalPowerAtTipset(ts)) * sum(ts.blocks[].ElectionProof.WinCount) * wRatio_num * 2^8) / (e * wRatio_den)
+
+	totalJ := int64(0)
+	for _, b := range ts.Blocks() {
+		totalJ += b.(*types.BlockHeader).ElectionProof.WinCount
+	}
+
+	eWeight := big.NewInt((log2P * build.WRatioNum))
+	eWeight = eWeight.Lsh(eWeight, 8)
+	eWeight = eWeight.Mul(eWeight, new(big.Int).SetInt64(totalJ))
+	eWeight = eWeight.Div(eWeight, big.NewInt(int64(build.BlocksPerEpoch*build.WRatioDen)))
+
+	out = out.Add(out, eWeight)
+
+	return types.BigInt{Int: out}, nil
+}
+
 func (filec *FilecoinEC) ValidateBlock(ctx context.Context, b *types.FullBlock) (err error) {
-	if err := blockSanityChecks(b.Header); err != nil {
+	if err := blockSanityChecks(b.Header.(*types.BlockHeader)); err != nil {
 		return xerrors.Errorf("incoming header failed basic sanity checks: %w", err)
 	}
 
-	h := b.Header
+	h := b.Header.(*types.BlockHeader)
 
 	baseTs, err := filec.store.LoadTipSet(types.NewTipSetKey(h.Parents...))
 	if err != nil {
@@ -85,12 +156,12 @@ func (filec *FilecoinEC) ValidateBlock(ctx context.Context, b *types.FullBlock) 
 
 	winPoStNv := filec.sm.GetNtwkVersion(ctx, baseTs.Height())
 
-	lbts, lbst, err := stmgr.GetLookbackTipSetForRound(ctx, filec.sm, baseTs, h.Height)
+	lbts, lbst, err := stmgr.GetLookbackTipSetForRound(ctx, filec.sm, baseTs.(*types.TipSet), h.Height)
 	if err != nil {
 		return xerrors.Errorf("failed to get lookback tipset for block: %w", err)
 	}
 
-	prevBeacon, err := filec.store.GetLatestBeaconEntry(baseTs)
+	prevBeacon, err := filec.filRand.GetLatestBeaconEntry(baseTs)
 	if err != nil {
 		return xerrors.Errorf("failed to get latest beacon entry: %w", err)
 	}
@@ -409,6 +480,8 @@ func (filec *FilecoinEC) VerifyWinningPoStProof(ctx context.Context, nv network.
 
 // TODO: We should extract this somewhere else and make the message pool and miner use the same logic
 func (filec *FilecoinEC) checkBlockMessages(ctx context.Context, b *types.FullBlock, baseTs *types.TipSet) error {
+	header := b.Header.(*types.BlockHeader)
+
 	{
 		var sigCids []cid.Cid // this is what we get for people not wanting the marshalcbor method on the cid type
 		var pubks [][]byte
@@ -424,7 +497,7 @@ func (filec *FilecoinEC) checkBlockMessages(ctx context.Context, b *types.FullBl
 			pubks = append(pubks, pubk)
 		}
 
-		if err := verifyBlsAggregate(ctx, b.Header.BLSAggregate, sigCids, pubks); err != nil {
+		if err := verifyBlsAggregate(ctx, header.BLSAggregate, sigCids, pubks); err != nil {
 			return xerrors.Errorf("bls aggregate signature was invalid: %w", err)
 		}
 	}
@@ -448,7 +521,7 @@ func (filec *FilecoinEC) checkBlockMessages(ctx context.Context, b *types.FullBl
 
 		// Phase 1: syntactic validation, as defined in the spec
 		minGas := pl.OnChainMessage(msg.ChainLength())
-		if err := m.ValidForBlockInclusion(minGas.Total(), filec.sm.GetNtwkVersion(ctx, b.Header.Height)); err != nil {
+		if err := m.ValidForBlockInclusion(minGas.Total(), filec.sm.GetNtwkVersion(ctx, header.Height)); err != nil {
 			return err
 		}
 
@@ -462,7 +535,7 @@ func (filec *FilecoinEC) checkBlockMessages(ctx context.Context, b *types.FullBl
 		// Phase 2: (Partial) semantic validation:
 		// the sender exists and is an account actor, and the nonces make sense
 		var sender address.Address
-		if filec.sm.GetNtwkVersion(ctx, b.Header.Height) >= network.Version13 {
+		if filec.sm.GetNtwkVersion(ctx, header.Height) >= network.Version13 {
 			sender, err = st.LookupID(m.From)
 			if err != nil {
 				return err
@@ -558,7 +631,7 @@ func (filec *FilecoinEC) checkBlockMessages(ctx context.Context, b *types.FullBl
 		return err
 	}
 
-	if b.Header.Messages != mrcid {
+	if header.Messages != mrcid {
 		return fmt.Errorf("messages didnt match message root in header")
 	}
 

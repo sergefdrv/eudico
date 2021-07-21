@@ -3,7 +3,7 @@ package types
 import "github.com/ipfs/go-cid"
 
 type FullBlock struct {
-	Header        *BlockHeader
+	Header        SyncBlock
 	BlsMessages   []*Message
 	SecpkMessages []*SignedMessage
 }

@@ -3,7 +3,6 @@ package store
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -16,9 +15,6 @@ import (
 	"github.com/filecoin-project/lotus/chain/state"
 
 	"golang.org/x/sync/errgroup"
-
-	"github.com/filecoin-project/go-state-types/crypto"
-	"github.com/minio/blake2b-simd"
 
 	"github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
@@ -87,7 +83,7 @@ func init() {
 }
 
 // ReorgNotifee represents a callback that gets called upon reorgs.
-type ReorgNotifee = func(rev, app []*types.TipSet) error
+type ReorgNotifee = func(rev, app []types.SyncTs) error
 
 // Journal event types.
 const (
@@ -102,6 +98,8 @@ type HeadChangeEvt struct {
 	RevertCount int
 	ApplyCount  int
 }
+
+type WeightFunction func(ctx context.Context, bs bstore.Blockstore, ts types.SyncTs) (types.BigInt, error)
 
 // ChainStore is the main point of access to chain data.
 //
@@ -120,8 +118,8 @@ type ChainStore struct {
 	chainLocalBlockstore bstore.Blockstore
 
 	heaviestLk sync.RWMutex
-	heaviest   *types.TipSet
-	checkpoint *types.TipSet
+	heaviest   types.SyncTs
+	checkpoint types.SyncTs
 
 	bestTips *pubsub.PubSub
 	pubLk    sync.Mutex
@@ -137,6 +135,7 @@ type ChainStore struct {
 	mmCache *lru.ARCCache
 	tsCache *lru.ARCCache
 
+	weight  WeightFunction
 	vmcalls vm.SyscallBuilder
 
 	evtTypes [1]journal.EventType
@@ -146,7 +145,7 @@ type ChainStore struct {
 	wg       sync.WaitGroup
 }
 
-func NewChainStore(chainBs bstore.Blockstore, stateBs bstore.Blockstore, ds dstore.Batching, vmcalls vm.SyscallBuilder, j journal.Journal) *ChainStore {
+func NewChainStore(chainBs bstore.Blockstore, stateBs bstore.Blockstore, ds dstore.Batching, weight WeightFunction, vmcalls vm.SyscallBuilder, j journal.Journal) *ChainStore {
 	c, _ := lru.NewARC(DefaultMsgMetaCacheSize)
 	tsc, _ := lru.NewARC(DefaultTipSetCacheSize)
 	if j == nil {
@@ -166,6 +165,7 @@ func NewChainStore(chainBs bstore.Blockstore, stateBs bstore.Blockstore, ds dsto
 		tipsets:              make(map[abi.ChainEpoch][]cid.Cid),
 		mmCache:              c,
 		tsCache:              tsc,
+		weight:               weight,
 		vmcalls:              vmcalls,
 		cancelFn:             cancel,
 		journal:              j,
@@ -179,7 +179,7 @@ func NewChainStore(chainBs bstore.Blockstore, stateBs bstore.Blockstore, ds dsto
 
 	cs.cindex = ci
 
-	hcnf := func(rev, app []*types.TipSet) error {
+	hcnf := func(rev, app []types.SyncTs) error {
 		cs.pubLk.Lock()
 		defer cs.pubLk.Unlock()
 
@@ -188,13 +188,13 @@ func NewChainStore(chainBs bstore.Blockstore, stateBs bstore.Blockstore, ds dsto
 		for i, r := range rev {
 			notif[i] = &api.HeadChange{
 				Type: HCRevert,
-				Val:  r,
+				Val:  r.Key(),
 			}
 		}
 		for i, r := range app {
 			notif[i+len(rev)] = &api.HeadChange{
 				Type: HCApply,
-				Val:  r,
+				Val:  r.Key(),
 			}
 		}
 
@@ -202,7 +202,7 @@ func NewChainStore(chainBs bstore.Blockstore, stateBs bstore.Blockstore, ds dsto
 		return nil
 	}
 
-	hcmetric := func(rev, app []*types.TipSet) error {
+	hcmetric := func(rev, app []types.SyncTs) error {
 		for _, r := range app {
 			stats.Record(context.Background(), metrics.ChainNodeHeight.M(int64(r.Height())))
 		}
@@ -280,7 +280,7 @@ func (cs *ChainStore) loadCheckpoint() error {
 	return nil
 }
 
-func (cs *ChainStore) writeHead(ts *types.TipSet) error {
+func (cs *ChainStore) writeHead(ts types.SyncTs) error {
 	data, err := json.Marshal(ts.Cids())
 	if err != nil {
 		return xerrors.Errorf("failed to marshal tipset: %w", err)
@@ -308,7 +308,7 @@ func (cs *ChainStore) SubHeadChanges(ctx context.Context) chan []*api.HeadChange
 	out := make(chan []*api.HeadChange, 16)
 	out <- []*api.HeadChange{{
 		Type: HCCurrent,
-		Val:  head,
+		Val:  head.Key(),
 	}}
 
 	go func() {
@@ -382,7 +382,7 @@ func (cs *ChainStore) SetGenesis(b *types.BlockHeader) error {
 	return cs.metadataDs.Put(dstore.NewKey("0"), b.Cid().Bytes())
 }
 
-func (cs *ChainStore) PutTipSet(ctx context.Context, ts *types.TipSet) error {
+func (cs *ChainStore) PutTipSet(ctx context.Context, ts types.SyncTs) error {
 	for _, b := range ts.Blocks() {
 		if err := cs.PersistBlockHeaders(b); err != nil {
 			return err
@@ -404,7 +404,7 @@ func (cs *ChainStore) PutTipSet(ctx context.Context, ts *types.TipSet) error {
 // MaybeTakeHeavierTipSet evaluates the incoming tipset and locks it in our
 // internal state as our new head, if and only if it is heavier than the current
 // head and does not exceed the maximum fork length.
-func (cs *ChainStore) MaybeTakeHeavierTipSet(ctx context.Context, ts *types.TipSet) error {
+func (cs *ChainStore) MaybeTakeHeavierTipSet(ctx context.Context, ts types.SyncTs) error {
 	for {
 		cs.heaviestLk.Lock()
 		if len(cs.reorgCh) < reorgChBuf/2 {
@@ -458,7 +458,7 @@ func (cs *ChainStore) MaybeTakeHeavierTipSet(ctx context.Context, ts *types.TipS
 // FIXME: We may want to replace some of the logic in `syncFork()` with this.
 //  `syncFork()` counts the length on both sides of the fork at the moment (we
 //  need to settle on that) but here we just enforce it on the `synced` side.
-func (cs *ChainStore) exceedsForkLength(synced, external *types.TipSet) (bool, error) {
+func (cs *ChainStore) exceedsForkLength(synced, external types.SyncTs) (bool, error) {
 	if synced == nil || external == nil {
 		// FIXME: If `cs.heaviest` is nil we should just bypass the entire
 		//  `MaybeTakeHeavierTipSet` logic (instead of each of the called
@@ -521,7 +521,7 @@ func (cs *ChainStore) exceedsForkLength(synced, external *types.TipSet) (bool, e
 // CAUTION: Use it only for testing, such as to teleport the chain to a
 // particular tipset to carry out a benchmark, verification, etc. on a chain
 // segment.
-func (cs *ChainStore) ForceHeadSilent(_ context.Context, ts *types.TipSet) error {
+func (cs *ChainStore) ForceHeadSilent(_ context.Context, ts types.SyncTs) error {
 	log.Warnf("(!!!) forcing a new head silently; new head: %s", ts)
 
 	cs.heaviestLk.Lock()
@@ -539,8 +539,8 @@ func (cs *ChainStore) ForceHeadSilent(_ context.Context, ts *types.TipSet) error
 }
 
 type reorg struct {
-	old *types.TipSet
-	new *types.TipSet
+	old types.SyncTs
+	new types.SyncTs
 }
 
 const reorgChBuf = 32
@@ -625,7 +625,7 @@ func (cs *ChainStore) reorgWorker(ctx context.Context, initialNotifees []ReorgNo
 // takeHeaviestTipSet actually sets the incoming tipset as our head both in
 // memory and in the ChainStore. It also sends a notification to deliver to
 // ReorgNotifees.
-func (cs *ChainStore) takeHeaviestTipSet(ctx context.Context, ts *types.TipSet) error {
+func (cs *ChainStore) takeHeaviestTipSet(ctx context.Context, ts types.SyncTs) error {
 	_, span := trace.StartSpan(ctx, "takeHeaviestTipSet")
 	defer span.End()
 
@@ -709,7 +709,7 @@ func FlushValidationCache(ds datastore.Batching) error {
 // This should only be called if something is broken and needs fixing.
 //
 // This function will bypass and remove any checkpoints.
-func (cs *ChainStore) SetHead(ts *types.TipSet) error {
+func (cs *ChainStore) SetHead(ts types.SyncTs) error {
 	cs.heaviestLk.Lock()
 	defer cs.heaviestLk.Unlock()
 	if err := cs.removeCheckpoint(); err != nil {
@@ -736,7 +736,7 @@ func (cs *ChainStore) removeCheckpoint() error {
 // SetCheckpoint will set a checkpoint past which the chainstore will not allow forks.
 //
 // NOTE: Checkpoints cannot be set beyond ForkLengthThreshold epochs in the past.
-func (cs *ChainStore) SetCheckpoint(ts *types.TipSet) error {
+func (cs *ChainStore) SetCheckpoint(ts types.SyncTs) error {
 	tskBytes, err := json.Marshal(ts.Key())
 	if err != nil {
 		return err
@@ -773,7 +773,7 @@ func (cs *ChainStore) SetCheckpoint(ts *types.TipSet) error {
 	return nil
 }
 
-func (cs *ChainStore) GetCheckpoint() *types.TipSet {
+func (cs *ChainStore) GetCheckpoint() types.SyncTs {
 	cs.heaviestLk.RLock()
 	chkpt := cs.checkpoint
 	cs.heaviestLk.RUnlock()
@@ -781,7 +781,7 @@ func (cs *ChainStore) GetCheckpoint() *types.TipSet {
 }
 
 // Contains returns whether our BlockStore has all blocks in the supplied TipSet.
-func (cs *ChainStore) Contains(ts *types.TipSet) (bool, error) {
+func (cs *ChainStore) Contains(ts types.SyncTs) (bool, error) {
 	for _, c := range ts.Cids() {
 		has, err := cs.chainBlockstore.Has(c)
 		if err != nil {
@@ -806,10 +806,10 @@ func (cs *ChainStore) GetBlock(c cid.Cid) (*types.BlockHeader, error) {
 	return blk, err
 }
 
-func (cs *ChainStore) LoadTipSet(tsk types.TipSetKey) (*types.TipSet, error) {
+func (cs *ChainStore) LoadTipSet(tsk types.TipSetKey) (types.SyncTs, error) {
 	v, ok := cs.tsCache.Get(tsk)
 	if ok {
-		return v.(*types.TipSet), nil
+		return v.(types.SyncTs), nil
 	}
 
 	// Fetch tipset block headers from blockstore in parallel
@@ -844,7 +844,7 @@ func (cs *ChainStore) LoadTipSet(tsk types.TipSetKey) (*types.TipSet, error) {
 }
 
 // IsAncestorOf returns true if 'a' is an ancestor of 'b'
-func (cs *ChainStore) IsAncestorOf(a, b *types.TipSet) (bool, error) {
+func (cs *ChainStore) IsAncestorOf(a, b types.SyncTs) (bool, error) {
 	if b.Height() <= a.Height() {
 		return false, nil
 	}
@@ -862,7 +862,7 @@ func (cs *ChainStore) IsAncestorOf(a, b *types.TipSet) (bool, error) {
 	return cur.Equals(a), nil
 }
 
-func (cs *ChainStore) NearestCommonAncestor(a, b *types.TipSet) (*types.TipSet, error) {
+func (cs *ChainStore) NearestCommonAncestor(a, b types.SyncTs) (types.SyncTs, error) {
 	l, _, err := cs.ReorgOps(a, b)
 	if err != nil {
 		return nil, err
@@ -879,15 +879,15 @@ func (cs *ChainStore) NearestCommonAncestor(a, b *types.TipSet) (*types.TipSet, 
 // ancestor.
 //
 // If an error happens along the way, we return the error with nil slices.
-func (cs *ChainStore) ReorgOps(a, b *types.TipSet) ([]*types.TipSet, []*types.TipSet, error) {
+func (cs *ChainStore) ReorgOps(a, b types.SyncTs) ([]types.SyncTs, []types.SyncTs, error) {
 	return ReorgOps(cs.LoadTipSet, a, b)
 }
 
-func ReorgOps(lts func(types.TipSetKey) (*types.TipSet, error), a, b *types.TipSet) ([]*types.TipSet, []*types.TipSet, error) {
+func ReorgOps(lts func(types.TipSetKey) (types.SyncTs, error), a, b types.SyncTs) ([]types.SyncTs, []types.SyncTs, error) {
 	left := a
 	right := b
 
-	var leftChain, rightChain []*types.TipSet
+	var leftChain, rightChain []types.SyncTs
 	for !left.Equals(right) {
 		if left.Height() > right.Height() {
 			leftChain = append(leftChain, left)
@@ -914,7 +914,7 @@ func ReorgOps(lts func(types.TipSetKey) (*types.TipSet, error), a, b *types.TipS
 }
 
 // GetHeaviestTipSet returns the current heaviest tipset known (i.e. our head).
-func (cs *ChainStore) GetHeaviestTipSet() (ts *types.TipSet) {
+func (cs *ChainStore) GetHeaviestTipSet() (ts types.SyncTs) {
 	cs.heaviestLk.RLock()
 	ts = cs.heaviest
 	cs.heaviestLk.RUnlock()
@@ -960,7 +960,7 @@ func (cs *ChainStore) AddToTipSetTracker(b *types.BlockHeader) error {
 	return nil
 }
 
-func (cs *ChainStore) PersistBlockHeaders(b ...*types.BlockHeader) error {
+func (cs *ChainStore) PersistBlockHeaders(b ...types.SyncBlock) error {
 	sbs := make([]block.Block, len(b))
 
 	for i, header := range b {
@@ -1009,21 +1009,21 @@ func (cs *ChainStore) PutMessage(m storable) (cid.Cid, error) {
 	return PutMessage(cs.chainBlockstore, m)
 }
 
-func (cs *ChainStore) expandTipset(b *types.BlockHeader) (*types.TipSet, error) {
+func (cs *ChainStore) expandTipset(b types.SyncBlock) (types.SyncTs, error) {
 	// Hold lock for the whole function for now, if it becomes a problem we can
 	// fix pretty easily
 	cs.tstLk.Lock()
 	defer cs.tstLk.Unlock()
 
-	all := []*types.BlockHeader{b}
+	all := []types.SyncBlock{b}
 
-	tsets, ok := cs.tipsets[b.Height]
+	blocksAtEpoch, ok := cs.tipsets[b.GetHeight()]
 	if !ok {
-		return types.NewTipSet(all)
+		return types.NewSyncTipSet(all)
 	}
 
-	inclMiners := map[address.Address]cid.Cid{b.Miner: b.Cid()}
-	for _, bhc := range tsets {
+	inclMiners := map[address.Address]cid.Cid{b.GetMiner(): b.Cid()}
+	for _, bhc := range blocksAtEpoch {
 		if bhc == b.Cid() {
 			continue
 		}
@@ -1038,7 +1038,7 @@ func (cs *ChainStore) expandTipset(b *types.BlockHeader) (*types.TipSet, error) 
 			continue
 		}
 
-		if types.CidArrsEqual(h.Parents, b.Parents) {
+		if types.CidArrsEqual(h.Parents, b.GetParents()) {
 			all = append(all, h)
 			inclMiners[h.Miner] = bhc
 		}
@@ -1046,7 +1046,7 @@ func (cs *ChainStore) expandTipset(b *types.BlockHeader) (*types.TipSet, error) 
 
 	// TODO: other validation...?
 
-	return types.NewTipSet(all)
+	return types.NewSyncTipSet(all)
 }
 
 func (cs *ChainStore) AddBlock(ctx context.Context, b *types.BlockHeader) error {
@@ -1144,11 +1144,11 @@ type BlockMessages struct {
 	WinCount      int64
 }
 
-func (cs *ChainStore) BlockMsgsForTipset(ts *types.TipSet) ([]BlockMessages, error) {
+func (cs *ChainStore) BlockMsgsForTipset(ts types.SyncTs) ([]BlockMessages, error) {
 	applied := make(map[address.Address]uint64)
 
 	cst := cbor.NewCborStore(cs.stateBlockstore)
-	st, err := state.LoadStateTree(cst, ts.Blocks()[0].ParentStateRoot)
+	st, err := state.LoadStateTree(cst, ts.Blocks()[0].GetParentStateRoot())
 	if err != nil {
 		return nil, xerrors.Errorf("failed to load state tree")
 	}
@@ -1187,10 +1187,10 @@ func (cs *ChainStore) BlockMsgsForTipset(ts *types.TipSet) ([]BlockMessages, err
 		}
 
 		bm := BlockMessages{
-			Miner:         b.Miner,
+			Miner:         b.GetMiner(),
 			BlsMessages:   make([]types.ChainMsg, 0, len(bms)),
 			SecpkMessages: make([]types.ChainMsg, 0, len(sms)),
-			WinCount:      b.ElectionProof.WinCount,
+			WinCount:      b.WinCount(),
 		}
 
 		for _, bmsg := range bms {
@@ -1221,7 +1221,7 @@ func (cs *ChainStore) BlockMsgsForTipset(ts *types.TipSet) ([]BlockMessages, err
 	return out, nil
 }
 
-func (cs *ChainStore) MessagesForTipset(ts *types.TipSet) ([]types.ChainMsg, error) {
+func (cs *ChainStore) MessagesForTipset(ts types.SyncTs) ([]types.ChainMsg, error) {
 	bmsgs, err := cs.BlockMsgsForTipset(ts)
 	if err != nil {
 		return nil, err
@@ -1296,16 +1296,16 @@ func (cs *ChainStore) GetPath(ctx context.Context, from types.TipSetKey, to type
 
 	path := make([]*api.HeadChange, len(revert)+len(apply))
 	for i, r := range revert {
-		path[i] = &api.HeadChange{Type: HCRevert, Val: r}
+		path[i] = &api.HeadChange{Type: HCRevert, Val: r.Key()}
 	}
 	for j, i := 0, len(apply)-1; i >= 0; j, i = j+1, i-1 {
-		path[j+len(revert)] = &api.HeadChange{Type: HCApply, Val: apply[i]}
+		path[j+len(revert)] = &api.HeadChange{Type: HCApply, Val: apply[i].Key()}
 	}
 	return path, nil
 }
 
-func (cs *ChainStore) MessagesForBlock(b *types.BlockHeader) ([]*types.Message, []*types.SignedMessage, error) {
-	blscids, secpkcids, err := cs.ReadMsgMetaCids(b.Messages)
+func (cs *ChainStore) MessagesForBlock(b types.SyncBlock) ([]*types.Message, []*types.SignedMessage, error) {
+	blscids, secpkcids, err := cs.ReadMsgMetaCids(b.MessagesRoot())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1395,7 +1395,7 @@ func (cs *ChainStore) VMSys() vm.SyscallBuilder {
 	return cs.vmcalls
 }
 
-func (cs *ChainStore) TryFillTipSet(ts *types.TipSet) (*FullTipSet, error) {
+func (cs *ChainStore) TryFillTipSet(ts types.SyncTs) (*FullTipSet, error) {
 	var out []*types.FullBlock
 
 	for _, b := range ts.Blocks() {
@@ -1417,113 +1417,11 @@ func (cs *ChainStore) TryFillTipSet(ts *types.TipSet) (*FullTipSet, error) {
 	return NewFullTipSet(out), nil
 }
 
-func DrawRandomness(rbase []byte, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	h := blake2b.New256()
-	if err := binary.Write(h, binary.BigEndian, int64(pers)); err != nil {
-		return nil, xerrors.Errorf("deriving randomness: %w", err)
-	}
-	VRFDigest := blake2b.Sum256(rbase)
-	_, err := h.Write(VRFDigest[:])
-	if err != nil {
-		return nil, xerrors.Errorf("hashing VRFDigest: %w", err)
-	}
-	if err := binary.Write(h, binary.BigEndian, round); err != nil {
-		return nil, xerrors.Errorf("deriving randomness: %w", err)
-	}
-	_, err = h.Write(entropy)
-	if err != nil {
-		return nil, xerrors.Errorf("hashing entropy: %w", err)
-	}
-
-	return h.Sum(nil), nil
-}
-
-func (cs *ChainStore) GetBeaconRandomnessLookingBack(ctx context.Context, blks []cid.Cid, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cs.GetBeaconRandomness(ctx, blks, pers, round, entropy, true)
-}
-
-func (cs *ChainStore) GetBeaconRandomnessLookingForward(ctx context.Context, blks []cid.Cid, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cs.GetBeaconRandomness(ctx, blks, pers, round, entropy, false)
-}
-
-func (cs *ChainStore) GetBeaconRandomness(ctx context.Context, blks []cid.Cid, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte, lookback bool) ([]byte, error) {
-	_, span := trace.StartSpan(ctx, "store.GetBeaconRandomness")
-	defer span.End()
-	span.AddAttributes(trace.Int64Attribute("round", int64(round)))
-
-	ts, err := cs.LoadTipSet(types.NewTipSetKey(blks...))
-	if err != nil {
-		return nil, err
-	}
-
-	if round > ts.Height() {
-		return nil, xerrors.Errorf("cannot draw randomness from the future")
-	}
-
-	searchHeight := round
-	if searchHeight < 0 {
-		searchHeight = 0
-	}
-
-	randTs, err := cs.GetTipsetByHeight(ctx, searchHeight, ts, lookback)
-	if err != nil {
-		return nil, err
-	}
-
-	be, err := cs.GetLatestBeaconEntry(randTs)
-	if err != nil {
-		return nil, err
-	}
-
-	// if at (or just past -- for null epochs) appropriate epoch
-	// or at genesis (works for negative epochs)
-	return DrawRandomness(be.Data, pers, round, entropy)
-}
-
-func (cs *ChainStore) GetChainRandomnessLookingBack(ctx context.Context, blks []cid.Cid, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cs.GetChainRandomness(ctx, blks, pers, round, entropy, true)
-}
-
-func (cs *ChainStore) GetChainRandomnessLookingForward(ctx context.Context, blks []cid.Cid, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cs.GetChainRandomness(ctx, blks, pers, round, entropy, false)
-}
-
-func (cs *ChainStore) GetChainRandomness(ctx context.Context, blks []cid.Cid, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte, lookback bool) ([]byte, error) {
-	_, span := trace.StartSpan(ctx, "store.GetChainRandomness")
-	defer span.End()
-	span.AddAttributes(trace.Int64Attribute("round", int64(round)))
-
-	ts, err := cs.LoadTipSet(types.NewTipSetKey(blks...))
-	if err != nil {
-		return nil, err
-	}
-
-	if round > ts.Height() {
-		return nil, xerrors.Errorf("cannot draw randomness from the future")
-	}
-
-	searchHeight := round
-	if searchHeight < 0 {
-		searchHeight = 0
-	}
-
-	randTs, err := cs.GetTipsetByHeight(ctx, searchHeight, ts, lookback)
-	if err != nil {
-		return nil, err
-	}
-
-	mtb := randTs.MinTicketBlock()
-
-	// if at (or just past -- for null epochs) appropriate epoch
-	// or at genesis (works for negative epochs)
-	return DrawRandomness(mtb.Ticket.VRFProof, pers, round, entropy)
-}
-
 // GetTipsetByHeight returns the tipset on the chain behind 'ts' at the given
 // height. In the case that the given height is a null round, the 'prev' flag
 // selects the tipset before the null round if true, and the tipset following
 // the null round if false.
-func (cs *ChainStore) GetTipsetByHeight(ctx context.Context, h abi.ChainEpoch, ts *types.TipSet, prev bool) (*types.TipSet, error) {
+func (cs *ChainStore) GetTipsetByHeight(ctx context.Context, h abi.ChainEpoch, ts types.SyncTs, prev bool) (types.SyncTs, error) {
 	if ts == nil {
 		ts = cs.GetHeaviestTipSet()
 	}
@@ -1592,7 +1490,7 @@ func recurseLinks(bs bstore.Blockstore, walked *cid.Set, root cid.Cid, in []cid.
 	return in, rerr
 }
 
-func (cs *ChainStore) Export(ctx context.Context, ts *types.TipSet, inclRecentRoots abi.ChainEpoch, skipOldMsgs bool, w io.Writer) error {
+func (cs *ChainStore) Export(ctx context.Context, ts types.SyncTs, inclRecentRoots abi.ChainEpoch, skipOldMsgs bool, w io.Writer) error {
 	h := &car.CarHeader{
 		Roots:   ts.Cids(),
 		Version: 1,
@@ -1617,7 +1515,7 @@ func (cs *ChainStore) Export(ctx context.Context, ts *types.TipSet, inclRecentRo
 	})
 }
 
-func (cs *ChainStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, inclRecentRoots abi.ChainEpoch, skipOldMsgs, skipMsgReceipts bool, cb func(cid.Cid) error) error {
+func (cs *ChainStore) WalkSnapshot(ctx context.Context, ts types.SyncTs, inclRecentRoots abi.ChainEpoch, skipOldMsgs, skipMsgReceipts bool, cb func(cid.Cid) error) error {
 	if ts == nil {
 		ts = cs.GetHeaviestTipSet()
 	}
@@ -1723,7 +1621,7 @@ func (cs *ChainStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, inclRe
 	return nil
 }
 
-func (cs *ChainStore) Import(r io.Reader) (*types.TipSet, error) {
+func (cs *ChainStore) Import(r io.Reader) (types.SyncTs, error) {
 	// TODO: writing only to the state blockstore is incorrect.
 	//  At this time, both the state and chain blockstores are backed by the
 	//  universal store. When we physically segregate the stores, we will need
@@ -1742,63 +1640,7 @@ func (cs *ChainStore) Import(r io.Reader) (*types.TipSet, error) {
 	return root, nil
 }
 
-func (cs *ChainStore) GetLatestBeaconEntry(ts *types.TipSet) (*types.BeaconEntry, error) {
-	cur := ts
-	for i := 0; i < 20; i++ {
-		cbe := cur.Blocks()[0].BeaconEntries
-		if len(cbe) > 0 {
-			return &cbe[len(cbe)-1], nil
-		}
-
-		if cur.Height() == 0 {
-			return nil, xerrors.Errorf("made it back to genesis block without finding beacon entry")
-		}
-
-		next, err := cs.LoadTipSet(cur.Parents())
-		if err != nil {
-			return nil, xerrors.Errorf("failed to load parents when searching back for latest beacon entry: %w", err)
-		}
-		cur = next
-	}
-
-	if os.Getenv("LOTUS_IGNORE_DRAND") == "_yes_" {
-		return &types.BeaconEntry{
-			Data: []byte{9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9},
-		}, nil
-	}
-
-	return nil, xerrors.Errorf("found NO beacon entries in the 20 latest tipsets")
-}
-
-type chainRand struct {
-	cs   *ChainStore
-	blks []cid.Cid
-}
-
-func NewChainRand(cs *ChainStore, blks []cid.Cid) vm.Rand {
-	return &chainRand{
-		cs:   cs,
-		blks: blks,
-	}
-}
-
-func (cr *chainRand) GetChainRandomnessLookingBack(ctx context.Context, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cr.cs.GetChainRandomnessLookingBack(ctx, cr.blks, pers, round, entropy)
-}
-
-func (cr *chainRand) GetChainRandomnessLookingForward(ctx context.Context, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cr.cs.GetChainRandomnessLookingForward(ctx, cr.blks, pers, round, entropy)
-}
-
-func (cr *chainRand) GetBeaconRandomnessLookingBack(ctx context.Context, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cr.cs.GetBeaconRandomnessLookingBack(ctx, cr.blks, pers, round, entropy)
-}
-
-func (cr *chainRand) GetBeaconRandomnessLookingForward(ctx context.Context, pers crypto.DomainSeparationTag, round abi.ChainEpoch, entropy []byte) ([]byte, error) {
-	return cr.cs.GetBeaconRandomnessLookingForward(ctx, cr.blks, pers, round, entropy)
-}
-
-func (cs *ChainStore) GetTipSetFromKey(tsk types.TipSetKey) (*types.TipSet, error) {
+func (cs *ChainStore) GetTipSetFromKey(tsk types.TipSetKey) (types.SyncTs, error) {
 	if tsk.IsEmpty() {
 		return cs.GetHeaviestTipSet(), nil
 	}

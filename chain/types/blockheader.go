@@ -46,6 +46,26 @@ func NewBeaconEntry(round uint64, data []byte) BeaconEntry {
 	}
 }
 
+type SyncBlock interface {
+	GetTimestamp() uint64
+	GetHeight() abi.ChainEpoch
+
+	GetParents() []cid.Cid
+	GetMiner() address.Address
+
+	MessagesRoot() cid.Cid
+	GetParentStateRoot() cid.Cid
+	GetParentBaseFee() abi.TokenAmount
+
+	Cid() cid.Cid
+	ToStorageBlock() (block.Block, error)
+
+	// hacks
+
+	// wincount used for reward actor in applyblocks :/
+	WinCount() int64
+}
+
 type BlockHeader struct {
 	Miner                 address.Address    // 0 unique per block/miner
 	Ticket                *Ticket            // 1 unique per block/miner: should be a valid VRF
@@ -66,6 +86,36 @@ type BlockHeader struct {
 
 	validated bool // internal, true if the signature has been validated
 }
+
+func (blk *BlockHeader) GetParents() []cid.Cid {
+	return blk.Parents
+}
+
+func (blk *BlockHeader) GetMiner() address.Address {
+	return blk.Miner
+}
+
+func (blk *BlockHeader) GetParentBaseFee() abi.TokenAmount {
+	return blk.ParentBaseFee
+}
+
+func (blk *BlockHeader) GetParentStateRoot() cid.Cid {
+	return blk.ParentStateRoot
+}
+
+func (blk *BlockHeader) GetHeight() abi.ChainEpoch {
+	return blk.Height
+}
+
+func (blk *BlockHeader) MessagesRoot() cid.Cid {
+	return blk.Messages
+}
+
+func (blk *BlockHeader) WinCount() int64 {
+	return blk.ElectionProof.WinCount
+}
+
+var _ SyncBlock = &BlockHeader{}
 
 func (blk *BlockHeader) ToStorageBlock() (block.Block, error) {
 	data, err := blk.Serialize()

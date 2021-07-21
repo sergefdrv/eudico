@@ -1089,7 +1089,7 @@ type CommPRet struct {
 }
 type HeadChange struct {
 	Type string
-	Val  *types.TipSet
+	Val  types.TipSetKey
 }
 
 type MsigProposeResponse int

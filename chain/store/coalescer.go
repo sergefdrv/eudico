@@ -30,12 +30,12 @@ type HeadChangeCoalescer struct {
 
 	eventq chan headChange
 
-	revert []*types.TipSet
-	apply  []*types.TipSet
+	revert []types.SyncTs
+	apply  []types.SyncTs
 }
 
 type headChange struct {
-	revert, apply []*types.TipSet
+	revert, apply []types.SyncTs
 }
 
 // NewHeadChangeCoalescer creates a HeadChangeCoalescer.
@@ -55,7 +55,7 @@ func NewHeadChangeCoalescer(fn ReorgNotifee, minDelay, maxDelay, mergeInterval t
 
 // HeadChange is the ReorgNotifee callback for the stateful coalescer; it receives an incoming
 // head change and schedules dispatch of a coalesced head change in the background.
-func (c *HeadChangeCoalescer) HeadChange(revert, apply []*types.TipSet) error {
+func (c *HeadChangeCoalescer) HeadChange(revert, apply []types.SyncTs) error {
 	select {
 	case c.eventq <- headChange{revert: revert, apply: apply}:
 		return nil
@@ -128,7 +128,7 @@ func (c *HeadChangeCoalescer) background(minDelay, maxDelay, mergeInterval time.
 	}
 }
 
-func (c *HeadChangeCoalescer) coalesce(revert, apply []*types.TipSet) {
+func (c *HeadChangeCoalescer) coalesce(revert, apply []types.SyncTs) {
 	// newly reverted tipsets cancel out with pending applys.
 	// similarly, newly applied tipsets cancel out with pending reverts.
 
@@ -169,8 +169,8 @@ func (c *HeadChangeCoalescer) coalesce(revert, apply []*types.TipSet) {
 	c.apply = newApply
 }
 
-func (c *HeadChangeCoalescer) merge(pend, incoming []*types.TipSet, cancel1, cancel2 map[types.TipSetKey]struct{}) []*types.TipSet {
-	result := make([]*types.TipSet, 0, len(pend)+len(incoming))
+func (c *HeadChangeCoalescer) merge(pend, incoming []types.SyncTs, cancel1, cancel2 map[types.TipSetKey]struct{}) []types.SyncTs {
+	result := make([]types.SyncTs, 0, len(pend)+len(incoming))
 	for _, ts := range pend {
 		_, cancel := cancel1[ts.Key()]
 		if cancel {

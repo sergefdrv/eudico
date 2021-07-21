@@ -197,14 +197,14 @@ func collectChainSegment(cs *store.ChainStore, req *validatedRequest) ([]*BSTipS
 	}
 }
 
-func gatherMessages(cs *store.ChainStore, ts *types.TipSet) ([]*types.Message, [][]uint64, []*types.SignedMessage, [][]uint64, error) {
+func gatherMessages(cs *store.ChainStore, ts types.SyncTs) ([]*types.Message, [][]uint64, []*types.SignedMessage, [][]uint64, error) {
 	blsmsgmap := make(map[cid.Cid]uint64)
 	secpkmsgmap := make(map[cid.Cid]uint64)
 	var secpkincl, blsincl [][]uint64
 
 	var blscids, secpkcids []cid.Cid
 	for _, block := range ts.Blocks() {
-		bc, sc, err := cs.ReadMsgMetaCids(block.Messages)
+		bc, sc, err := cs.ReadMsgMetaCids(block.MessagesRoot())
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}

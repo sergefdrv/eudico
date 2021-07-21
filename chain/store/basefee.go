@@ -77,7 +77,7 @@ func (cs *ChainStore) ComputeBaseFee(ctx context.Context, ts *types.TipSet) (abi
 			}
 		}
 	}
-	parentBaseFee := ts.Blocks()[0].ParentBaseFee
+	parentBaseFee := ts.Blocks()[0].GetParentBaseFee()
 
 	return ComputeNextBaseFee(parentBaseFee, totalLimit, len(ts.Blocks()), ts.Height()), nil
 }

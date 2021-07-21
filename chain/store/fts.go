@@ -40,12 +40,12 @@ func (fts *FullTipSet) TipSet() types.SyncTs {
 		return fts.tipset
 	}
 
-	var headers []*types.BlockHeader
+	var headers []types.SyncBlock
 	for _, b := range fts.Blocks {
 		headers = append(headers, b.Header)
 	}
 
-	ts, err := types.NewTipSet(headers)
+	ts, err := types.NewSyncTipSet(headers)
 	if err != nil {
 		panic(err)
 	}

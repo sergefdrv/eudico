@@ -141,7 +141,7 @@ func (res *Response) statusToError() error {
 type BSTipSet struct {
 	// List of blocks belonging to a single tipset to which the
 	// `CompactedMessages` are linked.
-	Blocks   []*types.BlockHeader
+	Blocks   []types.SyncBlock
 	Messages *CompactedMessages
 }
 

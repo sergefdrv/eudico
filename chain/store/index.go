@@ -31,7 +31,7 @@ type ChainIndex struct {
 
 	skipLength abi.ChainEpoch
 }
-type loadTipSetFunc func(types.TipSetKey) (*types.TipSet, error)
+type loadTipSetFunc func(types.TipSetKey) (types.SyncTs, error)
 
 func NewChainIndex(lts loadTipSetFunc) *ChainIndex {
 	sc, _ := lru.NewARC(DefaultChainIndexCacheSize)
@@ -43,13 +43,13 @@ func NewChainIndex(lts loadTipSetFunc) *ChainIndex {
 }
 
 type lbEntry struct {
-	ts           *types.TipSet
+	ts           types.SyncTs
 	parentHeight abi.ChainEpoch
 	targetHeight abi.ChainEpoch
 	target       types.TipSetKey
 }
 
-func (ci *ChainIndex) GetTipsetByHeight(_ context.Context, from *types.TipSet, to abi.ChainEpoch) (*types.TipSet, error) {
+func (ci *ChainIndex) GetTipsetByHeight(_ context.Context, from types.SyncTs, to abi.ChainEpoch) (types.SyncTs, error) {
 	if from.Height()-to <= ci.skipLength {
 		return ci.walkBack(from, to)
 	}
@@ -81,7 +81,7 @@ func (ci *ChainIndex) GetTipsetByHeight(_ context.Context, from *types.TipSet, t
 	}
 }
 
-func (ci *ChainIndex) GetTipsetByHeightWithoutCache(from *types.TipSet, to abi.ChainEpoch) (*types.TipSet, error) {
+func (ci *ChainIndex) GetTipsetByHeightWithoutCache(from types.SyncTs, to abi.ChainEpoch) (types.SyncTs, error) {
 	return ci.walkBack(from, to)
 }
 
@@ -111,7 +111,7 @@ func (ci *ChainIndex) fillCache(tsk types.TipSetKey) (*lbEntry, error) {
 		rheight = 0
 	}
 
-	var skipTarget *types.TipSet
+	var skipTarget types.SyncTs
 	if parent.Height() < rheight {
 		skipTarget = parent
 	} else {
@@ -137,7 +137,7 @@ func (ci *ChainIndex) roundHeight(h abi.ChainEpoch) abi.ChainEpoch {
 	return (h / ci.skipLength) * ci.skipLength
 }
 
-func (ci *ChainIndex) roundDown(ts *types.TipSet) (*types.TipSet, error) {
+func (ci *ChainIndex) roundDown(ts types.SyncTs) (types.SyncTs, error) {
 	target := ci.roundHeight(ts.Height())
 
 	rounded, err := ci.walkBack(ts, target)
@@ -148,7 +148,7 @@ func (ci *ChainIndex) roundDown(ts *types.TipSet) (*types.TipSet, error) {
 	return rounded, nil
 }
 
-func (ci *ChainIndex) walkBack(from *types.TipSet, to abi.ChainEpoch) (*types.TipSet, error) {
+func (ci *ChainIndex) walkBack(from types.SyncTs, to abi.ChainEpoch) (types.SyncTs, error) {
 	if to > from.Height() {
 		return nil, xerrors.Errorf("looking for tipset with height greater than start point")
 	}

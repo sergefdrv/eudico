@@ -19,16 +19,14 @@ var log = logging.Logger("types")
 
 type SyncTs interface {
 	Cids() []cid.Cid
+	Parents() TipSetKey
+	Key() TipSetKey
+
 	Height() abi.ChainEpoch
 	Blocks() []SyncBlock
 
 	MinTimestamp() uint64
 	Equals(SyncTs) bool
-}
-
-type SyncBlock interface {
-	GetTimestamp() uint64
-
 }
 
 type TipSet struct {
@@ -150,6 +148,16 @@ func NewTipSet(blks []*BlockHeader) (*TipSet, error) {
 	return &ts, nil
 }
 
+func NewSyncTipSet(blks []SyncBlock) (SyncTs, error) {
+	fbs := make([]*BlockHeader, len(blks))
+
+	for i, blk := range blks {
+		fbs[i] = blk.(*BlockHeader)
+	}
+
+	return NewTipSet(fbs)
+}
+
 func (ts *TipSet) Cids() []cid.Cid {
 	return ts.cids
 }
@@ -231,11 +239,11 @@ func (ts *TipSet) MinTimestamp() uint64 {
 func (ts *TipSet) MinTicketBlock() *BlockHeader {
 	blks := ts.Blocks()
 
-	min := blks[0]
+	min := blks[0].(*BlockHeader)
 
 	for _, b := range blks[1:] {
-		if b.(*BlockHeader).LastTicket().Less(min.(*BlockHeader).LastTicket()) {
-			min = b
+		if b.(*BlockHeader).LastTicket().Less(min.LastTicket()) {
+			min = b.(*BlockHeader)
 		}
 	}
 

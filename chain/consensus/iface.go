@@ -8,6 +8,7 @@ import (
 )
 
 type Consensus interface {
+	// sync
 	ValidateBlock(ctx context.Context, b *types.FullBlock) (err error)
 	IsEpochBeyondCurrMax(epoch abi.ChainEpoch) bool
 }

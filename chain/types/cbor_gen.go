@@ -22,8 +22,8 @@ var _ = sort.Sort
 
 var lengthBufBlockHeader = []byte{144}
 
-func (t *BlockHeader) MarshalCBOR(w io.Writer) error {
-	if t == nil {
+func (blk *BlockHeader) MarshalCBOR(w io.Writer) error {
+	if blk == nil {
 		_, err := w.Write(cbg.CborNull)
 		return err
 	}
@@ -34,127 +34,127 @@ func (t *BlockHeader) MarshalCBOR(w io.Writer) error {
 	scratch := make([]byte, 9)
 
 	// t.Miner (address.Address) (struct)
-	if err := t.Miner.MarshalCBOR(w); err != nil {
+	if err := blk.Miner.MarshalCBOR(w); err != nil {
 		return err
 	}
 
 	// t.Ticket (types.Ticket) (struct)
-	if err := t.Ticket.MarshalCBOR(w); err != nil {
+	if err := blk.Ticket.MarshalCBOR(w); err != nil {
 		return err
 	}
 
 	// t.ElectionProof (types.ElectionProof) (struct)
-	if err := t.ElectionProof.MarshalCBOR(w); err != nil {
+	if err := blk.ElectionProof.MarshalCBOR(w); err != nil {
 		return err
 	}
 
 	// t.BeaconEntries ([]types.BeaconEntry) (slice)
-	if len(t.BeaconEntries) > cbg.MaxLength {
+	if len(blk.BeaconEntries) > cbg.MaxLength {
 		return xerrors.Errorf("Slice value in field t.BeaconEntries was too long")
 	}
 
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajArray, uint64(len(t.BeaconEntries))); err != nil {
+	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajArray, uint64(len(blk.BeaconEntries))); err != nil {
 		return err
 	}
-	for _, v := range t.BeaconEntries {
+	for _, v := range blk.BeaconEntries {
 		if err := v.MarshalCBOR(w); err != nil {
 			return err
 		}
 	}
 
 	// t.WinPoStProof ([]proof.PoStProof) (slice)
-	if len(t.WinPoStProof) > cbg.MaxLength {
+	if len(blk.WinPoStProof) > cbg.MaxLength {
 		return xerrors.Errorf("Slice value in field t.WinPoStProof was too long")
 	}
 
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajArray, uint64(len(t.WinPoStProof))); err != nil {
+	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajArray, uint64(len(blk.WinPoStProof))); err != nil {
 		return err
 	}
-	for _, v := range t.WinPoStProof {
+	for _, v := range blk.WinPoStProof {
 		if err := v.MarshalCBOR(w); err != nil {
 			return err
 		}
 	}
 
 	// t.Parents ([]cid.Cid) (slice)
-	if len(t.Parents) > cbg.MaxLength {
+	if len(blk.Parents) > cbg.MaxLength {
 		return xerrors.Errorf("Slice value in field t.Parents was too long")
 	}
 
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajArray, uint64(len(t.Parents))); err != nil {
+	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajArray, uint64(len(blk.Parents))); err != nil {
 		return err
 	}
-	for _, v := range t.Parents {
+	for _, v := range blk.Parents {
 		if err := cbg.WriteCidBuf(scratch, w, v); err != nil {
 			return xerrors.Errorf("failed writing cid field t.Parents: %w", err)
 		}
 	}
 
 	// t.ParentWeight (big.Int) (struct)
-	if err := t.ParentWeight.MarshalCBOR(w); err != nil {
+	if err := blk.ParentWeight.MarshalCBOR(w); err != nil {
 		return err
 	}
 
 	// t.Height (abi.ChainEpoch) (int64)
-	if t.Height >= 0 {
-		if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajUnsignedInt, uint64(t.Height)); err != nil {
+	if blk.Height >= 0 {
+		if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajUnsignedInt, uint64(blk.Height)); err != nil {
 			return err
 		}
 	} else {
-		if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajNegativeInt, uint64(-t.Height-1)); err != nil {
+		if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajNegativeInt, uint64(-blk.Height-1)); err != nil {
 			return err
 		}
 	}
 
 	// t.ParentStateRoot (cid.Cid) (struct)
 
-	if err := cbg.WriteCidBuf(scratch, w, t.ParentStateRoot); err != nil {
+	if err := cbg.WriteCidBuf(scratch, w, blk.ParentStateRoot); err != nil {
 		return xerrors.Errorf("failed to write cid field t.ParentStateRoot: %w", err)
 	}
 
 	// t.ParentMessageReceipts (cid.Cid) (struct)
 
-	if err := cbg.WriteCidBuf(scratch, w, t.ParentMessageReceipts); err != nil {
+	if err := cbg.WriteCidBuf(scratch, w, blk.ParentMessageReceipts); err != nil {
 		return xerrors.Errorf("failed to write cid field t.ParentMessageReceipts: %w", err)
 	}
 
 	// t.Messages (cid.Cid) (struct)
 
-	if err := cbg.WriteCidBuf(scratch, w, t.Messages); err != nil {
+	if err := cbg.WriteCidBuf(scratch, w, blk.Messages); err != nil {
 		return xerrors.Errorf("failed to write cid field t.Messages: %w", err)
 	}
 
 	// t.BLSAggregate (crypto.Signature) (struct)
-	if err := t.BLSAggregate.MarshalCBOR(w); err != nil {
+	if err := blk.BLSAggregate.MarshalCBOR(w); err != nil {
 		return err
 	}
 
 	// t.Timestamp (uint64) (uint64)
 
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajUnsignedInt, uint64(t.Timestamp)); err != nil {
+	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajUnsignedInt, uint64(blk.Timestamp)); err != nil {
 		return err
 	}
 
 	// t.BlockSig (crypto.Signature) (struct)
-	if err := t.BlockSig.MarshalCBOR(w); err != nil {
+	if err := blk.BlockSig.MarshalCBOR(w); err != nil {
 		return err
 	}
 
 	// t.ForkSignaling (uint64) (uint64)
 
-	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajUnsignedInt, uint64(t.ForkSignaling)); err != nil {
+	if err := cbg.WriteMajorTypeHeaderBuf(scratch, w, cbg.MajUnsignedInt, uint64(blk.ForkSignaling)); err != nil {
 		return err
 	}
 
 	// t.ParentBaseFee (big.Int) (struct)
-	if err := t.ParentBaseFee.MarshalCBOR(w); err != nil {
+	if err := blk.ParentBaseFee.MarshalCBOR(w); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
-	*t = BlockHeader{}
+func (blk *BlockHeader) UnmarshalCBOR(r io.Reader) error {
+	*blk = BlockHeader{}
 
 	br := cbg.GetPeeker(r)
 	scratch := make([]byte, 8)
@@ -175,7 +175,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 
 	{
 
-		if err := t.Miner.UnmarshalCBOR(br); err != nil {
+		if err := blk.Miner.UnmarshalCBOR(br); err != nil {
 			return xerrors.Errorf("unmarshaling t.Miner: %w", err)
 		}
 
@@ -192,8 +192,8 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			if err := br.UnreadByte(); err != nil {
 				return err
 			}
-			t.Ticket = new(Ticket)
-			if err := t.Ticket.UnmarshalCBOR(br); err != nil {
+			blk.Ticket = new(Ticket)
+			if err := blk.Ticket.UnmarshalCBOR(br); err != nil {
 				return xerrors.Errorf("unmarshaling t.Ticket pointer: %w", err)
 			}
 		}
@@ -211,8 +211,8 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			if err := br.UnreadByte(); err != nil {
 				return err
 			}
-			t.ElectionProof = new(ElectionProof)
-			if err := t.ElectionProof.UnmarshalCBOR(br); err != nil {
+			blk.ElectionProof = new(ElectionProof)
+			if err := blk.ElectionProof.UnmarshalCBOR(br); err != nil {
 				return xerrors.Errorf("unmarshaling t.ElectionProof pointer: %w", err)
 			}
 		}
@@ -234,7 +234,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 	}
 
 	if extra > 0 {
-		t.BeaconEntries = make([]BeaconEntry, extra)
+		blk.BeaconEntries = make([]BeaconEntry, extra)
 	}
 
 	for i := 0; i < int(extra); i++ {
@@ -244,7 +244,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			return err
 		}
 
-		t.BeaconEntries[i] = v
+		blk.BeaconEntries[i] = v
 	}
 
 	// t.WinPoStProof ([]proof.PoStProof) (slice)
@@ -263,7 +263,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 	}
 
 	if extra > 0 {
-		t.WinPoStProof = make([]proof.PoStProof, extra)
+		blk.WinPoStProof = make([]proof.PoStProof, extra)
 	}
 
 	for i := 0; i < int(extra); i++ {
@@ -273,7 +273,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			return err
 		}
 
-		t.WinPoStProof[i] = v
+		blk.WinPoStProof[i] = v
 	}
 
 	// t.Parents ([]cid.Cid) (slice)
@@ -292,7 +292,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 	}
 
 	if extra > 0 {
-		t.Parents = make([]cid.Cid, extra)
+		blk.Parents = make([]cid.Cid, extra)
 	}
 
 	for i := 0; i < int(extra); i++ {
@@ -301,14 +301,14 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 		if err != nil {
 			return xerrors.Errorf("reading cid field t.Parents failed: %w", err)
 		}
-		t.Parents[i] = c
+		blk.Parents[i] = c
 	}
 
 	// t.ParentWeight (big.Int) (struct)
 
 	{
 
-		if err := t.ParentWeight.UnmarshalCBOR(br); err != nil {
+		if err := blk.ParentWeight.UnmarshalCBOR(br); err != nil {
 			return xerrors.Errorf("unmarshaling t.ParentWeight: %w", err)
 		}
 
@@ -336,7 +336,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			return fmt.Errorf("wrong type for int64 field: %d", maj)
 		}
 
-		t.Height = abi.ChainEpoch(extraI)
+		blk.Height = abi.ChainEpoch(extraI)
 	}
 	// t.ParentStateRoot (cid.Cid) (struct)
 
@@ -347,7 +347,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			return xerrors.Errorf("failed to read cid field t.ParentStateRoot: %w", err)
 		}
 
-		t.ParentStateRoot = c
+		blk.ParentStateRoot = c
 
 	}
 	// t.ParentMessageReceipts (cid.Cid) (struct)
@@ -359,7 +359,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			return xerrors.Errorf("failed to read cid field t.ParentMessageReceipts: %w", err)
 		}
 
-		t.ParentMessageReceipts = c
+		blk.ParentMessageReceipts = c
 
 	}
 	// t.Messages (cid.Cid) (struct)
@@ -371,7 +371,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			return xerrors.Errorf("failed to read cid field t.Messages: %w", err)
 		}
 
-		t.Messages = c
+		blk.Messages = c
 
 	}
 	// t.BLSAggregate (crypto.Signature) (struct)
@@ -386,8 +386,8 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			if err := br.UnreadByte(); err != nil {
 				return err
 			}
-			t.BLSAggregate = new(crypto.Signature)
-			if err := t.BLSAggregate.UnmarshalCBOR(br); err != nil {
+			blk.BLSAggregate = new(crypto.Signature)
+			if err := blk.BLSAggregate.UnmarshalCBOR(br); err != nil {
 				return xerrors.Errorf("unmarshaling t.BLSAggregate pointer: %w", err)
 			}
 		}
@@ -404,7 +404,7 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 		if maj != cbg.MajUnsignedInt {
 			return fmt.Errorf("wrong type for uint64 field")
 		}
-		t.Timestamp = uint64(extra)
+		blk.Timestamp = uint64(extra)
 
 	}
 	// t.BlockSig (crypto.Signature) (struct)
@@ -419,8 +419,8 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 			if err := br.UnreadByte(); err != nil {
 				return err
 			}
-			t.BlockSig = new(crypto.Signature)
-			if err := t.BlockSig.UnmarshalCBOR(br); err != nil {
+			blk.BlockSig = new(crypto.Signature)
+			if err := blk.BlockSig.UnmarshalCBOR(br); err != nil {
 				return xerrors.Errorf("unmarshaling t.BlockSig pointer: %w", err)
 			}
 		}
@@ -437,14 +437,14 @@ func (t *BlockHeader) UnmarshalCBOR(r io.Reader) error {
 		if maj != cbg.MajUnsignedInt {
 			return fmt.Errorf("wrong type for uint64 field")
 		}
-		t.ForkSignaling = uint64(extra)
+		blk.ForkSignaling = uint64(extra)
 
 	}
 	// t.ParentBaseFee (big.Int) (struct)
 
 	{
 
-		if err := t.ParentBaseFee.UnmarshalCBOR(br); err != nil {
+		if err := blk.ParentBaseFee.UnmarshalCBOR(br); err != nil {
 			return xerrors.Errorf("unmarshaling t.ParentBaseFee: %w", err)
 		}
 
