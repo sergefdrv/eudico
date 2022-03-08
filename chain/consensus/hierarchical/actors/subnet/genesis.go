@@ -118,16 +118,6 @@ func MakeInitialStateTree(ctx context.Context, bs bstore.Blockstore, template ge
 		return nil, nil, xerrors.Errorf("set system actor: %w", err)
 	}
 
-	// Create init actor
-
-	idStart, initact, keyIDs, err := genesis2.SetupInitActor(ctx, bs, template.NetworkName, template.Accounts, template.VerifregRootKey, template.RemainderAccount, av)
-	if err != nil {
-		return nil, nil, xerrors.Errorf("setup init actor: %w", err)
-	}
-	if err := state.SetActor(init_.Address, initact); err != nil {
-		return nil, nil, xerrors.Errorf("set init actor: %w", err)
-	}
-
 	// Create empty power actor
 	spact, err := SetupStoragePowerActor(ctx, bs, av)
 	if err != nil {
@@ -144,6 +134,16 @@ func MakeInitialStateTree(ctx context.Context, bs bstore.Blockstore, template ge
 	}
 	if err := state.SetActor(mpower.PowerActorAddr, spmockedact); err != nil {
 		return nil, nil, xerrors.Errorf("set storage power actor: %w", err)
+	}
+
+	// Create init actor
+
+	idStart, initact, keyIDs, err := genesis2.SetupInitActor(ctx, bs, template.NetworkName, template.Accounts, template.VerifregRootKey, template.RemainderAccount, av)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("setup init actor: %w", err)
+	}
+	if err := state.SetActor(init_.Address, initact); err != nil {
+		return nil, nil, xerrors.Errorf("set init actor: %w", err)
 	}
 
 	// Setup sca actor
