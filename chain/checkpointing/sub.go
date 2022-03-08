@@ -49,21 +49,17 @@ var log = logging.Logger("checkpointing")
 
 //update this value with the amount you have in your wallet (for testing purpose)
 //const initialValueInWallet = 50
-const initialValueInWallet = 0.0001
+
+const initialValueInWallet = 0.002
 
 // change this to true to alternatively send all the amount from our wallet
 var sendall = false
-
-// we use this bool to write the transactions locally and remove the need
-// to scan the whole blockchaain when new nodes join as this takes a long time
-// this is only for demo purpose and works only if the nodes are launch from the same machine
-const writeTxLocally = true
 
 // this variable is the number of blocks (in eudico) we want between each checkpoints
 const checkpointFrequency = 15
 
 //change to true if regtest is used
-const Regtest = true
+const Regtest = false
 
 // struct used to propagate detected changes.
 type diffInfo struct {
