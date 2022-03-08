@@ -2,6 +2,7 @@ package mpower
 
 import (
 	"fmt"
+
 	address "github.com/filecoin-project/go-address"
 	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/go-state-types/cbor"
@@ -117,8 +118,8 @@ func (a Actor) UpdateTaprootAddress(rt Runtime, addr *NewTaprootAddressParam) *a
 	var st State
 	rt.StateTransaction(&st, func() {
 		// Miners list is replaced with the one passed as parameters
-		st.PublicKey = addr.PublicKey
-		fmt.Println("address updated", st.PublicKey)
+		//st.PublicKey = addr.PublicKey
+		fmt.Println("address updated")
 	})
 	return nil
 }

@@ -8,7 +8,8 @@ import (
 	//"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
+
+	//"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -48,9 +49,9 @@ import (
 var log = logging.Logger("checkpointing")
 
 //update this value with the amount you have in your wallet (for testing purpose)
-//const initialValueInWallet = 50
+const initialValueInWallet = 50
 
-const initialValueInWallet = 0.002
+//const initialValueInWallet = 0.002
 
 // change this to true to alternatively send all the amount from our wallet
 var sendall = false
@@ -59,7 +60,7 @@ var sendall = false
 const checkpointFrequency = 15
 
 //change to true if regtest is used
-const Regtest = false
+const Regtest = true
 
 // struct used to propagate detected changes.
 type diffInfo struct {
@@ -360,12 +361,12 @@ func (c *CheckpointingSub) listenCheckpointEvents(ctx context.Context) {
 		// note: due to a bug we can't make the public key field of the
 		// actor so the following check will never return true (the
 		// public key is never updated)
-		if !reflect.DeepEqual(oldSt.PublicKey, newSt.PublicKey) {
-			c.newDKGComplete = true
-			c.newKey = newSt.PublicKey
-			c.keysUpdated = false
+		// if !reflect.DeepEqual(oldSt.PublicKey, newSt.PublicKey) {
+		// 	c.newDKGComplete = true
+		// 	c.newKey = newSt.PublicKey
+		// 	c.keysUpdated = false
 
-		}
+		// }
 
 		change2, err := c.matchCheckpoint(ctx, oldTs, newTs, oldSt, newSt, diff)
 
