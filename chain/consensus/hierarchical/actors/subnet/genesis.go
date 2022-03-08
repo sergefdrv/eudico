@@ -118,15 +118,6 @@ func MakeInitialStateTree(ctx context.Context, bs bstore.Blockstore, template ge
 		return nil, nil, xerrors.Errorf("set system actor: %w", err)
 	}
 
-	// Create empty power actor
-	spact, err := SetupStoragePowerActor(ctx, bs, av)
-	if err != nil {
-		return nil, nil, xerrors.Errorf("setup storage power actor: %w", err)
-	}
-	if err := state.SetActor(power.Address, spact); err != nil {
-		return nil, nil, xerrors.Errorf("set storage power actor: %w", err)
-	}
-
 	// Create init actor
 
 	idStart, initact, keyIDs, err := genesis2.SetupInitActor(ctx, bs, template.NetworkName, template.Accounts, template.VerifregRootKey, template.RemainderAccount, av)
@@ -137,12 +128,21 @@ func MakeInitialStateTree(ctx context.Context, bs bstore.Blockstore, template ge
 		return nil, nil, xerrors.Errorf("set init actor: %w", err)
 	}
 
-	// Create empty mocked power actor
+	// Create empty power actor
 	spact, err := SetupStoragePowerActor(ctx, bs, av)
 	if err != nil {
 		return nil, nil, xerrors.Errorf("setup storage power actor: %w", err)
 	}
-	if err := state.SetActor(mpower.PowerActorAddr, spact); err != nil {
+	if err := state.SetActor(power.Address, spact); err != nil {
+		return nil, nil, xerrors.Errorf("set storage power actor: %w", err)
+	}
+
+	// Create empty mocked power actor
+	spmockedact, err := SetupStorageMockedPowerActor(ctx, bs, av)
+	if err != nil {
+		return nil, nil, xerrors.Errorf("setup storage mocked power actor: %w", err)
+	}
+	if err := state.SetActor(mpower.PowerActorAddr, spmockedact); err != nil {
 		return nil, nil, xerrors.Errorf("set storage power actor: %w", err)
 	}
 
@@ -288,7 +288,7 @@ func SetupSCAActor(ctx context.Context, bs bstore.Blockstore, params *sca.Constr
 
 // This is our mocked power actor used in checkpointing module
 // This function allow initializing the state in our genesis file
-func SetupStoragePowerActor(ctx context.Context, bs bstore.Blockstore, av actors.Version) (*types.Actor, error) {
+func SetupStorageMockedPowerActor(ctx context.Context, bs bstore.Blockstore, av actors.Version) (*types.Actor, error) {
 	cst := cbor.NewCborStore(bs)
 	pst, err := mpower.ConstructState(adt.WrapStore(ctx, cbor.NewCborStore(bs)))
 	if err != nil {
@@ -307,7 +307,6 @@ func SetupStoragePowerActor(ctx context.Context, bs bstore.Blockstore, av actors
 
 	return act, nil
 }
-
 
 func SetupRewardActor(ctx context.Context, bs bstore.Blockstore, qaPower big.Int, av actors.Version) (*types.Actor, error) {
 	cst := cbor.NewCborStore(bs)
@@ -382,7 +381,3 @@ func SetupStoragePowerActor(ctx context.Context, bs bstore.Blockstore, av actors
 
 	return act, nil
 }
-
-
-
-
