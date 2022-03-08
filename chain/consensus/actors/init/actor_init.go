@@ -112,7 +112,7 @@ func canExec(callerCodeID cid.Cid, execCodeID cid.Cid) bool {
 		actor.SplitActorCodeID,
 
 		actor.SubnetActorCodeID,
-		actor.MpowerActorCodeID:
+		actor.MpowerActorCodeID,
 
 		actor.ReplaceActorCodeID,
 		actor.SubnetActorCodeID:

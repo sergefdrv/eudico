@@ -51,11 +51,9 @@ require (
 	github.com/filecoin-project/specs-actors/v3 v3.1.1
 	github.com/filecoin-project/specs-actors/v4 v4.0.1
 	github.com/filecoin-project/specs-actors/v5 v5.0.4
-
 	github.com/filecoin-project/specs-actors/v6 v6.0.1
 	github.com/filecoin-project/specs-actors/v7 v7.0.0-rc1
 	github.com/filecoin-project/specs-storage v0.1.1-0.20211228030229-6d460d25a0c9
-
 	github.com/filecoin-project/test-vectors/schema v0.0.5
 	github.com/gammazero/keymutex v0.0.2
 	github.com/gbrlsnchs/jwt/v3 v3.0.1
@@ -144,10 +142,8 @@ require (
 	github.com/polydawn/refmt v0.0.0-20201211092308-30ac6d18308e
 	github.com/prometheus/client_golang v1.11.0
 	github.com/raulk/clock v1.1.0
-
-	github.com/sa8/multi-party-sig v0.1.1
-
 	github.com/raulk/go-watchdog v1.2.0
+	github.com/sa8/multi-party-sig v0.1.1
 	github.com/streadway/quantile v0.0.0-20150917103942-b0c588724d25
 	github.com/stretchr/testify v1.7.0
 	github.com/syndtr/goleveldb v1.0.0
