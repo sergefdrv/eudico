@@ -513,7 +513,7 @@ func (s *Service) JoinSubnet(
 	}
 
 	var params bytes.Buffer
-	v := hierarchical.NewValidator(id, wallet, validatorNetAddr)
+	v := &subnet.JoinParams{ValidatorNetAddr: validatorNetAddr}
 	err = v.MarshalCBOR(&params)
 	if err != nil {
 		return cid.Undef, err
