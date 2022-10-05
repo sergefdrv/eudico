@@ -46,7 +46,9 @@ func TestJoin(t *testing.T) {
 	rt := getRuntime(t)
 	h.constructAndVerify(t, rt)
 	notMiner := tutil.NewIDAddr(t, 103)
+	notMinerSecp := tutil.NewSECP256K1Addr(h.t, notMiner.String())
 	miner := tutil.NewIDAddr(t, 104)
+	minerSecp := tutil.NewSECP256K1Addr(h.t, miner.String())
 	totalStake := abi.NewTokenAmount(0)
 
 	t.Log("join new subnet without enough funds to register")
@@ -56,6 +58,7 @@ func TestJoin(t *testing.T) {
 	rt.SetBalance(value)
 	// Anyone can call
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(notMiner, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &notMinerSecp, exitcode.Ok)
 	ret := rt.Call(h.SubnetActor.Join, &actor.JoinParams{})
 	rt.Verify()
 	assert.Nil(h.t, ret)
@@ -74,6 +77,7 @@ func TestJoin(t *testing.T) {
 	rt.SetBalance(totalStake)
 	rt.SetCaller(miner, builtin.AccountActorCodeID)
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(miner, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &minerSecp, exitcode.Ok)
 	rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.Register, nil, totalStake, nil, exitcode.Ok)
 	rt.Call(h.SubnetActor.Join, &actor.JoinParams{})
 	rt.Verify()
@@ -90,6 +94,7 @@ func TestJoin(t *testing.T) {
 	rt.SetBalance(value)
 	rt.SetCaller(notMiner, builtin.AccountActorCodeID)
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(notMiner, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &notMinerSecp, exitcode.Ok)
 	// Triggers a stake top-up in SCA
 	rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.AddStake, nil, value, nil, exitcode.Ok)
 	rt.Call(h.SubnetActor.Join, &actor.JoinParams{})
@@ -109,8 +114,11 @@ func TestLeaveAndKill(t *testing.T) {
 	rt := getRuntime(t)
 	h.constructAndVerify(t, rt)
 	joiner := tutil.NewIDAddr(t, 102)
+	joinerSecp := tutil.NewSECP256K1Addr(h.t, joiner.String())
 	joiner2 := tutil.NewIDAddr(t, 103)
+	joiner2Secp := tutil.NewSECP256K1Addr(h.t, joiner2.String())
 	joiner3 := tutil.NewIDAddr(t, 104)
+	joiner3Secp := tutil.NewSECP256K1Addr(h.t, joiner3.String())
 	totalStake := abi.NewTokenAmount(0)
 
 	t.Log("first miner joins subnet")
@@ -121,6 +129,7 @@ func TestLeaveAndKill(t *testing.T) {
 	totalStake = big.Add(totalStake, value)
 	// Anyone can call
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(joiner, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &joinerSecp, exitcode.Ok)
 	rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.Register, nil, totalStake, nil, exitcode.Ok)
 	ret := rt.Call(h.SubnetActor.Join, &actor.JoinParams{})
 	assert.Nil(h.t, ret)
@@ -138,6 +147,7 @@ func TestLeaveAndKill(t *testing.T) {
 	rt.SetBalance(value)
 	rt.SetCaller(joiner2, builtin.AccountActorCodeID)
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(joiner2, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &joiner2Secp, exitcode.Ok)
 	rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.AddStake, nil, value, nil, exitcode.Ok)
 	rt.Call(h.SubnetActor.Join, &actor.JoinParams{})
 	rt.Verify()
@@ -155,6 +165,7 @@ func TestLeaveAndKill(t *testing.T) {
 	rt.SetBalance(value)
 	rt.SetCaller(joiner3, builtin.AccountActorCodeID)
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(joiner3, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &joiner3Secp, exitcode.Ok)
 	rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.AddStake, nil, value, nil, exitcode.Ok)
 	rt.Call(h.SubnetActor.Join, &actor.JoinParams{})
 	rt.Verify()
@@ -171,6 +182,7 @@ func TestLeaveAndKill(t *testing.T) {
 	minerStake := getStake(t, rt, joiner2)
 	totalStake = big.Sub(totalStake, minerStake)
 	rt.SetBalance(minerStake)
+	rt.ExpectSend(joiner2, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &joiner2Secp, exitcode.Ok)
 	rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.ReleaseStake, &sca.FundParams{Value: minerStake}, big.Zero(), nil, exitcode.Ok)
 	rt.ExpectSend(joiner2, builtin.MethodSend, nil, big.Div(minerStake, actor.LeavingFeeCoeff), nil, exitcode.Ok)
 	rt.Call(h.SubnetActor.Leave, nil)
@@ -194,6 +206,7 @@ func TestLeaveAndKill(t *testing.T) {
 	minerStake = getStake(t, rt, joiner)
 	totalStake = big.Sub(totalStake, minerStake)
 	rt.SetBalance(minerStake)
+	rt.ExpectSend(joiner, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &joinerSecp, exitcode.Ok)
 	rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.ReleaseStake, &sca.FundParams{Value: minerStake}, big.Zero(), nil, exitcode.Ok)
 	rt.ExpectSend(joiner, builtin.MethodSend, nil, big.Div(minerStake, actor.LeavingFeeCoeff), nil, exitcode.Ok)
 	rt.Call(h.SubnetActor.Leave, nil)
@@ -206,6 +219,7 @@ func TestLeaveAndKill(t *testing.T) {
 
 	t.Log("miner can't leave twice")
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(joiner, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &joinerSecp, exitcode.Ok)
 	rt.ExpectAbort(exitcode.ErrForbidden, func() {
 		rt.Call(h.SubnetActor.Leave, nil)
 	})
@@ -223,6 +237,7 @@ func TestLeaveAndKill(t *testing.T) {
 
 	t.Log("subnet can't be killed twice")
 	rt.ExpectValidateCallerAny()
+	rt.ExpectSend(joiner3, builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &joiner3Secp, exitcode.Ok)
 	rt.ExpectAbort(exitcode.ErrIllegalState, func() {
 		rt.Call(h.SubnetActor.Kill, nil)
 	})
@@ -250,10 +265,14 @@ func TestCheckpoints(t *testing.T) {
 		t.Fatal(err)
 	}
 	var miners []address.Address
+	var minerIDs []address.Address
 	for i := 0; i < 3; i++ {
 		addr, err := w.WalletNew(ctx, types.KTSecp256k1)
 		require.NoError(t, err)
 		miners = append(miners, addr)
+		idAddr := tutil.NewIDAddr(t, uint64(100+i))
+		rt.AddIDAddress(addr, idAddr)
+		minerIDs = append(minerIDs, idAddr)
 	}
 	totalStake := abi.NewTokenAmount(0)
 
@@ -267,6 +286,7 @@ func TestCheckpoints(t *testing.T) {
 		// Anyone can call
 		rt.ExpectValidateCallerAny()
 		// The first miner triggers a register message to SCA
+		rt.ExpectSend(minerIDs[i], builtin.MethodsAccount.PubkeyAddress, nil, big.Zero(), &miners[i], exitcode.Ok)
 		if i == 0 {
 			rt.ExpectSend(hierarchical.SubnetCoordActorAddr, sca.Methods.Register, nil, totalStake, nil, exitcode.Ok)
 		} else {

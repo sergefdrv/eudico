@@ -118,11 +118,12 @@ type JoinParams struct {
 func (a SubnetActor) Join(rt runtime.Runtime, params *JoinParams) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
 	sourceAddr := rt.Caller()
+	sourcePkAddr := sca.SecpBLSAddr(rt, rt.Caller())
 	value := rt.ValueReceived()
 
 	var st SubnetState
 	rt.StateTransaction(&st, func() {
-		st.addStake(rt, sourceAddr, value, params)
+		st.addStake(rt, sourceAddr, sourcePkAddr, value, params)
 	})
 
 	// If the subnet is not registered, i.e. in an instantiated state
@@ -166,6 +167,7 @@ func (a SubnetActor) Join(rt runtime.Runtime, params *JoinParams) *abi.EmptyValu
 func (a SubnetActor) Leave(rt runtime.Runtime, _ *abi.EmptyValue) *abi.EmptyValue {
 	rt.ValidateImmediateCallerAcceptAny()
 	sourceAddr := rt.Caller()
+	sourcePkAddr := sca.SecpBLSAddr(rt, rt.Caller())
 
 	var (
 		st         SubnetState
@@ -197,7 +199,7 @@ func (a SubnetActor) Leave(rt runtime.Runtime, _ *abi.EmptyValue) *abi.EmptyValu
 	var retFunds abi.TokenAmount
 	rt.StateTransaction(&st, func() {
 		// Remove the validator and its stake from stake balance table.
-		retFunds = st.rmStake(rt, sourceAddr, stakes, minerStake)
+		retFunds = st.rmStake(rt, sourceAddr, sourcePkAddr, stakes, minerStake)
 	})
 
 	// Never send back if we don't have enough balance
@@ -424,7 +426,7 @@ func (st *SubnetState) GetStake(store adt.Store, miner address.Address) (big.Int
 	return stakes.Get(miner)
 }
 
-func (st *SubnetState) addStake(rt runtime.Runtime, sourceAddr address.Address, value abi.TokenAmount, params *JoinParams) {
+func (st *SubnetState) addStake(rt runtime.Runtime, sourceAddr, sourcePkAddr address.Address, value abi.TokenAmount, params *JoinParams) {
 	// NOTE: There's currently no minimum stake required. Any stake is accepted even
 	// if a peer is not granted mining rights. According to the final design we may
 	// choose to accept only stakes over a minimum amount.
@@ -450,15 +452,14 @@ func (st *SubnetState) addStake(rt runtime.Runtime, sourceAddr address.Address, 
 			st.Miners = append(st.Miners, sourceAddr)
 			st.ValidatorSet = append(st.ValidatorSet, hierarchical.Validator{
 				Subnet:  address.NewSubnetID(st.ParentID, rt.Receiver()),
-				Addr:    sourceAddr,
+				Addr:    sourcePkAddr,
 				NetAddr: params.ValidatorNetAddr,
 			})
 		}
 	}
-
 }
 
-func (st *SubnetState) rmStake(rt runtime.Runtime, sourceAddr address.Address, stakes *adt.BalanceTable, minerStake abi.TokenAmount) abi.TokenAmount {
+func (st *SubnetState) rmStake(rt runtime.Runtime, sourceAddr, sourcePkAddr address.Address, stakes *adt.BalanceTable, minerStake abi.TokenAmount) abi.TokenAmount {
 	retFunds := big.Div(minerStake, LeavingFeeCoeff)
 
 	// Remove from stakes.
@@ -472,7 +473,7 @@ func (st *SubnetState) rmStake(rt runtime.Runtime, sourceAddr address.Address, s
 	// NOTE: If we decide to support part-recovery of stake from subnets
 	// we need to check if the miner keeps its mining rights.
 	st.Miners = rmMiner(sourceAddr, st.Miners)
-	st.ValidatorSet = rmValidator(sourceAddr, st.ValidatorSet)
+	st.ValidatorSet = rmValidator(sourcePkAddr, st.ValidatorSet)
 
 	// We are removing what we return to the miner, the rest stays
 	// in the subnet, right now the leavingCoeff==1 so there won't be
